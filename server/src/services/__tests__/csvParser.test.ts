@@ -1,4 +1,4 @@
-import { parseCSV } from '../csvParser';
+import { parseCSV } from '../csvParser.js';
 
 describe('csvParser', () => {
   it('should parse a standard single-column amount CSV', () => {

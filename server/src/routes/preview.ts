@@ -1,25 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/connection.js';
+import { FileStageRow, TransactionStageRow } from '../db/types.js';
 
 const router = Router();
-
-interface TransactionStageRow {
-  TransactionStageId: number;
-  Hash: string;
-  Date: string;
-  Description: string;
-  Amount: number;
-  RawCategory: string | null;
-  CategoryId: string | null;
-  PersonId: number | null;
-}
-
-interface FileStageRow {
-  FileStageId: number;
-  Filename: string;
-  Sign: number;
-  AccountId: number | null;
-}
 
 router.get('/preview/:id', (req: Request, res: Response) => {
   const { id } = req.params;

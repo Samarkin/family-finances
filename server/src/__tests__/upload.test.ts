@@ -1,33 +1,13 @@
 import request from 'supertest';
 import app from '../index.js';
 import { closeDb, getDb } from '../db/connection.js';
+import { AccountRow, PersonRow, FileStageRow, TransactionStageRow } from '../db/types.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-interface FileStageRow {
-  FileStageId: number;
-  Filename: string;
-  AccountId: number | null;
-}
-
-interface TransactionStageRow {
-  TransactionStageId: number;
-  Description: string;
-  Amount: number;
-  PersonId: number | null;
-}
-
-interface AccountRow {
-  AccountId: number;
-}
-
-interface PersonRow {
-  PersonId: number;
-}
 
 describe('POST /api/upload', () => {
   beforeAll(() => {

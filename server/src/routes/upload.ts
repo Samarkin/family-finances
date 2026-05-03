@@ -1,21 +1,12 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import crypto from 'crypto';
 import { getDb } from '../db/connection.js';
 import { parseCSV } from '../services/csvParser.js';
+import { AccountRow, PersonRow } from '../db/types.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
-
-interface AccountRow {
-  AccountId: number;
-  FilenameRegex: string | null;
-  AccountRegex: string | null;
-}
-
-interface PersonRow {
-  PersonId: number;
-  MemberRegex: string | null;
-}
 
 function calculateHash(
   date: string,
@@ -23,12 +14,9 @@ function calculateHash(
   amount: number,
   accountId?: number,
 ): string {
-  // Hash: Month-Day-Description-Amount-AccountId
-  // date is YYYY-MM-DD
-  const parts = date.split('-');
-  const month = parts[1];
-  const day = parseInt(parts[2], 10).toString();
-  return `${month}-${day}-${description}-${amount}-${accountId || ''}`;
+  const hash = crypto.createHash('sha256');
+  hash.update(`${date}-${description}-${amount}-${accountId || ''}`);
+  return hash.digest('hex');
 }
 
 router.post('/upload', upload.single('file'), (req: Request, res: Response) => {

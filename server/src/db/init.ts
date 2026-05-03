@@ -1,18 +1,11 @@
 import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/finance.db');
 
 /**
  * Initializes the database with the required schema and seed data.
  * @param dbPath Path to the SQLite database file.
  * @returns The better-sqlite3 Database instance.
  */
-export function initDb(dbPath: string = DB_PATH) {
+export function initDb(dbPath: string) {
   const db = new Database(dbPath);
   db.pragma('foreign_keys = ON');
 
@@ -91,19 +84,4 @@ export function initDb(dbPath: string = DB_PATH) {
   insertPerson.run('Family');
 
   return db;
-}
-
-// Run the initialization if this script is executed directly
-const isMain =
-  process.argv[1] && (process.argv[1].endsWith('init.ts') || process.argv[1].endsWith('init.js'));
-
-if (isMain) {
-  console.log(`Initializing database at ${DB_PATH}...`);
-  try {
-    initDb();
-    console.log('Database initialized successfully.');
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-    process.exit(1);
-  }
 }
