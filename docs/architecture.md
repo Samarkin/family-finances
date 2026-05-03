@@ -31,6 +31,7 @@ Web-interface.
 This is the first page user will see (i.e. `/` endpoint).
 
 Displays 3 graphs:
+
 1. Pie-chart of total spendings in the database (by category).
 2. Pie-chart of spendings last month (by category).
 3. Stacked area chart of spendings in the past 12 months. Horizontal axis – months, vertical axis – money, separated by category.
@@ -39,7 +40,7 @@ Every chart is accompanied by the total number of transactions shown, total amou
 Graphs use different color for each category, the colors are persisted in the configuration file on the server.
 Click on a pie-chart takes to the transactions page – with either all transactions, or only for one month (depending on which pie-chart was clicked).
 There is a single legend for all three graphs. Clicking on the categories in the legend hides that particular category from all three graphs.
-There is an edge case where any number could be negative. Display does not have to be pretty, 
+There is an edge case where any number could be negative. Display does not have to be pretty,
 Gracefully handles the case of no transactions yet.
 
 ### Transactions page
@@ -63,6 +64,7 @@ There must be a way to update category and person for the selected rows.
 At the bottom of the page, two buttons – submit and discard.
 
 ### Files page
+
 Lists all files that are present in the transactions table.
 For every file displays the original filename, account name and transaction range.
 Allows deleting individual files.
@@ -70,20 +72,21 @@ Allows deleting individual files.
 ## Server
 
 ### Database
+
 | File         |
-|--------------|
+| ------------ |
 | FileId PK    |
 | Filename     |
 | AccountId FK |
 
 | Person      |
-|-------------|
+| ----------- |
 | PersonID PK |
 | Name UNIQUE |
 | MemberRegex |
 
 | Account                 |
-|-------------------------|
+| ----------------------- |
 | AccountID PK            |
 | Name UNIQUE             |
 | FilenameRegex NULL      |
@@ -91,48 +94,49 @@ Allows deleting individual files.
 | AccountRegex NULL       |
 | DefaultPersonId FK NULL |
 
-| Transaction  | Comment        |
-|--------------|----------------|
+| Transaction  | Comment                                                              |
+| ------------ | -------------------------------------------------------------------- |
 | Hash PK      | Calculated from Month + "-" + Day + Description + Amount + AccountId |
-| Month        | e.g. "2025-04" |
-| DayOfMonth   |                |
-| Description  |                |
-| CategoryId   |                |
-| Amount       |                |
-| AccountId FK |                |
-| FileId FK    |                |
-| PersonId FK  |                |
+| Month        | e.g. "2025-04"                                                       |
+| DayOfMonth   |                                                                      |
+| Description  |                                                                      |
+| CategoryId   |                                                                      |
+| Amount       |                                                                      |
+| AccountId FK |                                                                      |
+| FileId FK    |                                                                      |
+| PersonId FK  |                                                                      |
 
 | FileStage         |
-|-------------------|
+| ----------------- |
 | FileStageId PK    |
 | Filename          |
 | Sign BOOL         |
 | AccountId FK NULL |
 
-| TransactionStage      | Comment           |
-|-----------------------|-------------------|
-| TransactionStageId PK |                   |
+| TransactionStage      | Comment                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| TransactionStageId PK |                                                                    |
 | Hash                  | Should use exactly the same algorithm as for the Transaction table |
-| Date                  | e.g. "2025-04-23" |
-| Description           | Exactly as present in the input CSV         |
-| Amount                | Exactly as present in the input CSV         |
-| RawCategory NULL      | Exactly as present in the input CSV, if any |
-| CategoryId NULL       |                   |
-| FileStageId FK        |                   |
-| PersonId FK NULL      |                   |
+| Date                  | e.g. "2025-04-23"                                                  |
+| Description           | Exactly as present in the input CSV                                |
+| Amount                | Exactly as present in the input CSV                                |
+| RawCategory NULL      | Exactly as present in the input CSV, if any                        |
+| CategoryId NULL       |                                                                    |
+| FileStageId FK        |                                                                    |
+| PersonId FK NULL      |                                                                    |
 
-| CategoryMapping |
-|-----------------|
-| CategoryId      |
-| CategoryRegex NULL |
+| CategoryMapping       |
+| --------------------- |
+| CategoryId            |
+| CategoryRegex NULL    |
 | DescriptionRegex NULL |
-| AccountId FK NULL |
+| AccountId FK NULL     |
 
 ### Categories
 
 Categories will be hard-coded on the server.
 Each category will have an associated color.
+
 ```
 export const categories = {
     "salary": { "name": "Salary", "color": "#7f7f7f" },
@@ -155,6 +159,7 @@ Person name could be found in "Purchased By" or "Card Member" columns, and if pr
 ### API
 
 #### `GET /summary`
+
 ```
 {
     "data": [ // ordered by month
@@ -170,12 +175,14 @@ Person name could be found in "Purchased By" or "Card Member" columns, and if pr
 ```
 
 #### `GET /transactions`
-| Parameter | Comment  |
-|-----------|----------|
+
+| Parameter | Comment                  |
+| --------- | ------------------------ |
 | month     | Optional, e.g. "2024-05" |
-| personId  | Optional |
-| offset    | Optional, defaults to 0 |
-| count     | Mandatory |
+| personId  | Optional                 |
+| offset    | Optional, defaults to 0  |
+| count     | Mandatory                |
+
 ```
 {
     "data": [
@@ -185,8 +192,8 @@ Person name could be found in "Purchased By" or "Card Member" columns, and if pr
 }
 ```
 
-
 #### `POST /upload`
+
 Accepts both file name and content (CSV).
 Applies filename regexes to try to guess account id. Leaves blank (and sets Sign=FALSE) if cannot.
 Applies mappings from CategoryMapping to try to guess category id. Leaves blank if cannot.
@@ -194,20 +201,25 @@ Adds raw content to the stage tables.
 Returns FileStageId.
 
 #### `GET /preview/<ID>`
+
 Queries FileStage and TransactionStage.
 Calculates number of duplicates (based on hash), and range (based on Year-Month).
 Inverts sign of all transactions if Sign is TRUE.
 Only returns non-duplicated transactions.
 
 #### `POST /preview/<ID>/submit`
+
 Verifies all fields, returns error with explanation if something is missing.
 Moves data that is not duplicated from the stage tables to the main ones.
 
 #### `POST /preview/<ID>/discard`
+
 Deletes row from FileStage, causing cascade delete for TransactionStage.
 
 #### `POST /preview/<ID>/bulk-update`
+
 Input:
+
 ```
 {
     "ids": [ ... ], // transaction id's, treat as "All transaction in this file" if missing or empty
@@ -215,12 +227,15 @@ Input:
     "person": "..." // optional
 }
 ```
+
 Output – same as `GET /preview/<ID>`.
 
 #### `PUT /preview/<ID>/sign`
+
 #### `PUT /preview/<ID>/account`
 
 #### `GET /files`
+
 ```
 {
     "data": [
