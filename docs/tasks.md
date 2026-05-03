@@ -14,7 +14,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Initialize the `server` using Node.js, Express, and `better-sqlite3`.
     - Add root-level scripts to install dependencies and run both environments concurrently.
     - Create a root `README.md` with setup and execution instructions.
-- [ ] **1.2 Database Schema & Initialization**: Create SQLite schema and an initialization script.
+- [x] **1.2 Database Schema & Initialization**: Create SQLite schema and an initialization script.
   - **Requirements**:
     - Implement a single script (`server/src/db/init.ts`) that initializes the SQLite database.
     - Create all tables defined in the architecture: `File`, `Person`, `Account`, `Transaction`, `FileStage`, `TransactionStage`, and `CategoryMapping`.
