@@ -9,7 +9,8 @@
     "dev:server": "npm run dev --prefix server",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "npm run test --prefix server"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
