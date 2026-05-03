@@ -42,7 +42,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Handle date parsing for various common formats.
     - Support multi-column amount formats (Debit/Credit) and normalize them into a single signed amount.
     - Implement basic heuristic detection for Account and Person based on CSV columns like "Account No." or "Card Member".
-- [ ] **2.2 Upload & Stage API (`POST /api/upload`)**: Accept CSV files and save to staging tables.
+- [x] **2.2 Upload & Stage API (`POST /api/upload`)**: Accept CSV files and save to staging tables.
   - **Requirements**:
     - Implement the `POST /api/upload` endpoint using `multer` for file handling.
     - Store file metadata in the `FileStage` table.

@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { getDb } from './db/connection.js';
+import uploadRouter from './routes/upload.js';
 
 dotenv.config();
 
@@ -11,6 +12,9 @@ const port = process.env.PORT || 3001;
 // Enable JSON request parsing
 app.use(express.json());
 app.use(cors());
+
+// Routes
+app.use('/api', uploadRouter);
 
 // GET /api/status endpoint
 app.get('/api/status', (_req, res) => {
