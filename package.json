@@ -10,6 +10,7 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "format-check": "prettier --check .",
     "test": "npm run test --prefix server"
   },
   "devDependencies": {

@@ -35,7 +35,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 
 ## Phase 2: Ingestion Pipeline
 
-- [ ] **2.1 CSV Parsing Service**: Implement normalization logic for varied bank formats.
+- [x] **2.1 CSV Parsing Service**: Implement normalization logic for varied bank formats.
   - **Requirements**:
     - Use `papaparse` for robust CSV parsing on the server.
     - Implement a normalization service that maps different bank column headers (e.g., "Transaction Date", "Date", "Description", "Amount ($)", "Debit", "Credit") to a standard internal format.
