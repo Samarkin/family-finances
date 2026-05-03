@@ -35,11 +35,41 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 
 ## Phase 2: Ingestion Pipeline
 
-- [ ] **2.1 CSV Parsing Logic**: Service using Papa Parse to normalize varied bank formats.
-- [ ] **2.2 Upload & Stage API (`POST /upload`)**: Accept CSV, parse, and save to staging tables.
-- [ ] **2.3 Basic Preview UI**: React page for file selection and upload.
-- [ ] **2.4 Preview API & Duplicate Detection**: Implement `GET /preview/<ID>` with hash calculation and sign inversion.
-- [ ] **2.5 Data Commitment (`POST /submit`)**: Logic to move unique transactions from staging to main tables.
+- [ ] **2.1 CSV Parsing Service**: Implement normalization logic for varied bank formats.
+  - **Requirements**:
+    - Use `papaparse` for robust CSV parsing on the server.
+    - Implement a normalization service that maps different bank column headers (e.g., "Transaction Date", "Date", "Description", "Amount ($)", "Debit", "Credit") to a standard internal format.
+    - Handle date parsing for various common formats.
+    - Support multi-column amount formats (Debit/Credit) and normalize them into a single signed amount.
+    - Implement basic heuristic detection for Account and Person based on CSV columns like "Account No." or "Card Member".
+- [ ] **2.2 Upload & Stage API (`POST /api/upload`)**: Accept CSV files and save to staging tables.
+  - **Requirements**:
+    - Implement the `POST /api/upload` endpoint using `multer` for file handling.
+    - Store file metadata in the `FileStage` table.
+    - Use the CSV Parsing Service to process the file and populate the `TransactionStage` table with raw data.
+    - Return the `FileStageId` to the client for subsequent preview.
+- [ ] **2.3 Basic Preview UI**: React page for file upload and initial staging view.
+  - **Requirements**:
+    - Create a `PreviewPage` component in the client.
+    - Implement a drag-and-drop upload zone on the `TransactionsPage`.
+    - Handle navigation to the `PreviewPage` after a successful upload.
+    - Display the filename and a basic table of staged transactions.
+- [ ] **2.4 Preview API & Refinement**: Implement preview logic with duplicate detection.
+  - **Requirements**:
+    - Implement `GET /api/preview/:id` to fetch staged data.
+    - Implement hash calculation (Month-Day-Description-Amount-AccountId) for duplicate detection against the main `Transaction` table.
+    - Implement `PUT /api/preview/:id/sign` to toggle sign inversion for the entire file.
+    - Implement `PUT /api/preview/:id/account` to associate an account with the staged file.
+    - Implement `POST /api/preview/:id/bulk-update` for batch assigning Category and Person to selected staged rows.
+- [ ] **2.5 Data Commitment**: Move unique transactions from staging to main tables.
+  - **Requirements**:
+    - Implement the `POST /api/preview/:id/submit` endpoint.
+    - Validate that all mandatory fields (Account, Category, Person) are present for all staged rows.
+    - Use a single SQL transaction to:
+      - Create a new entry in the `File` table.
+      - Move non-duplicate transactions from `TransactionStage` to the main `Transaction` table.
+      - Delete the staged data from `FileStage` (cascade delete should handle `TransactionStage`).
+    - Implement `POST /api/preview/:id/discard` to allow explicitly deleting staged data without committing.
 
 ## Phase 3: Core Visibility
 
