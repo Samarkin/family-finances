@@ -4,6 +4,7 @@ import cors from 'cors';
 import { getDb } from './db/connection.js';
 import uploadRouter from './routes/upload.js';
 import previewRouter from './routes/preview.js';
+import accountsRouter from './routes/accounts.js';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(cors());
 // Routes
 app.use('/api', uploadRouter);
 app.use('/api', previewRouter);
+app.use('/api', accountsRouter);
 
 // GET /api/status endpoint
 app.get('/api/status', (_req, res) => {

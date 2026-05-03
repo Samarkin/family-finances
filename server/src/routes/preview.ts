@@ -198,7 +198,7 @@ router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
       } else {
         // Apply to all transactions in this file
         query += ' WHERE FileStageId = ?';
-        params.push(id);
+        params.push(id as string);
       }
 
       db.prepare(query).run(...params);

@@ -1,7 +1,10 @@
 export interface AccountRow {
   AccountId: number;
+  Name: string;
   FilenameRegex: string | null;
+  Sign: number;
   AccountRegex: string | null;
+  DefaultPersonId: number | null;
 }
 
 export interface PersonRow {
