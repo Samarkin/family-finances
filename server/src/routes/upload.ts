@@ -1,23 +1,12 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import crypto from 'crypto';
 import { getDb } from '../db/connection.js';
 import { parseCSV } from '../services/csvParser.js';
 import { AccountRow, PersonRow } from '../db/types.js';
+import { calculateTransactionHash } from '../utils/hash.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
-
-function calculateHash(
-  date: string,
-  description: string,
-  amount: number,
-  accountId?: number,
-): string {
-  const hash = crypto.createHash('sha256');
-  hash.update(`${date}-${description}-${amount}-${accountId || ''}`);
-  return hash.digest('hex');
-}
 
 router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
   if (!req.file) {
@@ -94,7 +83,7 @@ router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
           }
         }
 
-        const hash = calculateHash(
+        const hash = calculateTransactionHash(
           tx.date,
           tx.description,
           tx.amount,

@@ -15,20 +15,21 @@ import {
 } from '@mui/material';
 
 interface StagedTransaction {
-  TransactionStageId: number;
-  Date: string;
-  Description: string;
-  Amount: number;
-  RawCategory?: string;
-  CategoryId?: string;
-  PersonId?: string;
-  isDuplicate?: boolean;
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+  rawCategory?: string;
+  categoryId?: string;
+  personId?: string;
 }
 
 interface PreviewData {
   filename: string;
   transactions: StagedTransaction[];
   duplicateCount: number;
+  accountId: number | null;
+  sign: boolean;
 }
 
 export default function PreviewPage() {
@@ -81,11 +82,11 @@ export default function PreviewPage() {
           </TableHead>
           <TableBody>
             {data.transactions.map((tx) => (
-              <TableRow key={tx.TransactionStageId} sx={{ opacity: tx.isDuplicate ? 0.5 : 1 }}>
-                <TableCell>{tx.Date}</TableCell>
-                <TableCell>{tx.Description}</TableCell>
-                <TableCell align="right">{tx.Amount.toFixed(2)}</TableCell>
-                <TableCell>{tx.RawCategory || '-'}</TableCell>
+              <TableRow key={tx.id}>
+                <TableCell>{tx.date}</TableCell>
+                <TableCell>{tx.description}</TableCell>
+                <TableCell align="right">{tx.amount.toFixed(2)}</TableCell>
+                <TableCell>{tx.rawCategory || '-'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -11,23 +11,16 @@ const mockData = {
   filename: 'test-transactions.csv',
   transactions: [
     {
-      TransactionStageId: 1,
-      Date: '2025-05-01',
-      Description: 'Test Transaction 1',
-      Amount: 100.5,
-      RawCategory: 'Food',
-      isDuplicate: false,
-    },
-    {
-      TransactionStageId: 2,
-      Date: '2025-05-02',
-      Description: 'Test Transaction 2',
-      Amount: -50.0,
-      RawCategory: 'Transport',
-      isDuplicate: true,
+      id: 1,
+      date: '2025-05-01',
+      description: 'Test Transaction 1',
+      amount: 100.5,
+      rawCategory: 'Food',
     },
   ],
   duplicateCount: 1,
+  accountId: null,
+  sign: false,
 };
 
 describe('PreviewPage', () => {
@@ -65,11 +58,9 @@ describe('PreviewPage', () => {
       expect(screen.getByText('Preview: test-transactions.csv')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Total Transactions: 2 | Duplicates: 1')).toBeInTheDocument();
+    expect(screen.getByText('Total Transactions: 1 | Duplicates: 1')).toBeInTheDocument();
     expect(screen.getByText('Test Transaction 1')).toBeInTheDocument();
     expect(screen.getByText('100.50')).toBeInTheDocument();
-    expect(screen.getByText('Test Transaction 2')).toBeInTheDocument();
-    expect(screen.getByText('-50.00')).toBeInTheDocument();
   });
 
   it('renders error state on fetch failure', async () => {

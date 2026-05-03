@@ -47,18 +47,20 @@ describe('GET /api/preview/:id', () => {
       duplicateCount: 0,
       transactions: [
         {
-          Hash: 'hash1',
-          Date: '2023-01-01',
-          Description: 'Test Tx 1',
-          Amount: 10.5,
-          RawCategory: 'Food',
-          isDuplicate: false,
+          id: expect.any(Number),
+          date: '2023-01-01',
+          description: 'Test Tx 1',
+          amount: 10.5,
+          rawCategory: 'Food',
         },
       ],
     });
+    expect(response.body.transactions[0]).not.toHaveProperty('Hash');
+    expect(response.body.transactions[0]).not.toHaveProperty('FileStageId');
+    expect(response.body.transactions[0]).not.toHaveProperty('isDuplicate');
   });
 
-  it('should correctly identify duplicates', async () => {
+  it('should correctly identify and filter duplicates', async () => {
     const db = getDb();
 
     // Seed Person
@@ -108,22 +110,8 @@ describe('GET /api/preview/:id', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.duplicateCount).toBe(1);
-    expect(response.body.transactions).toHaveLength(2);
-
-    interface TransactionResult {
-      Hash: string;
-      isDuplicate: boolean;
-    }
-
-    const duplicateTx = response.body.transactions.find(
-      (tx: TransactionResult) => tx.Hash === 'duplicate_hash',
-    );
-    const uniqueTx = response.body.transactions.find(
-      (tx: TransactionResult) => tx.Hash === 'unique_hash',
-    );
-
-    expect(duplicateTx.isDuplicate).toBe(true);
-    expect(uniqueTx.isDuplicate).toBe(false);
+    expect(response.body.transactions).toHaveLength(1);
+    expect(response.body.transactions[0].description).toBe('Unique Tx');
   });
 
   it('should invert amount signs if Sign is TRUE in FileStage', async () => {
@@ -145,12 +133,201 @@ describe('GET /api/preview/:id', () => {
     const response = await request(app).get(`/api/preview/${fileStageId}`);
 
     expect(response.status).toBe(200);
-    expect(response.body.transactions[0].Amount).toBe(-100.0);
+    expect(response.body.transactions[0].amount).toBe(-100.0);
   });
 
   it('should return 404 for non-existent staged file', async () => {
     const response = await request(app).get('/api/preview/9999');
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Staged file not found');
+  });
+});
+
+describe('PUT /api/preview/:id/sign', () => {
+  beforeAll(() => {
+    process.env.DB_PATH = ':memory:';
+  });
+
+  afterAll(() => {
+    closeDb();
+  });
+
+  it('should toggle sign and update hashes', async () => {
+    const db = getDb();
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename, Sign) VALUES (?, ?)')
+      .run('test.csv', 0);
+
+    db.prepare(
+      `
+      INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    ).run('original_hash', '2023-01-01', 'Test', 10.0, fileStageId);
+
+    const response = await request(app).put(`/api/preview/${fileStageId}/sign`);
+    expect(response.status).toBe(200);
+
+    const fileStage = db
+      .prepare('SELECT Sign FROM FileStage WHERE FileStageId = ?')
+      .get(fileStageId) as { Sign: number };
+    expect(fileStage.Sign).toBe(1);
+
+    const tx = db
+      .prepare('SELECT Hash FROM TransactionStage WHERE FileStageId = ?')
+      .get(fileStageId) as { Hash: string };
+    // Hash should have changed because amount used in hash is now -10.0
+    expect(tx.Hash).not.toBe('original_hash');
+  });
+});
+
+describe('PUT /api/preview/:id/account', () => {
+  beforeAll(() => {
+    process.env.DB_PATH = ':memory:';
+  });
+
+  afterAll(() => {
+    closeDb();
+  });
+
+  it('should update accountId and update hashes', async () => {
+    const db = getDb();
+    const { lastInsertRowid: accountId } = db
+      .prepare('INSERT INTO Account (Name) VALUES (?)')
+      .run('New Account');
+
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename, Sign) VALUES (?, ?)')
+      .run('test.csv', 0);
+
+    db.prepare(
+      `
+      INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    ).run('hash_no_account', '2023-01-01', 'Test', 10.0, fileStageId);
+
+    const response = await request(app)
+      .put(`/api/preview/${fileStageId}/account`)
+      .send({ accountId });
+
+    expect(response.status).toBe(200);
+
+    const fileStage = db
+      .prepare('SELECT AccountId FROM FileStage WHERE FileStageId = ?')
+      .get(fileStageId) as { AccountId: number };
+    expect(fileStage.AccountId).toBe(Number(accountId));
+
+    const tx = db
+      .prepare('SELECT Hash FROM TransactionStage WHERE FileStageId = ?')
+      .get(fileStageId) as { Hash: string };
+    // Hash should have changed because AccountId is now included
+    expect(tx.Hash).not.toBe('hash_no_account');
+  });
+});
+
+describe('POST /api/preview/:id/bulk-update', () => {
+  beforeAll(() => {
+    process.env.DB_PATH = ':memory:';
+  });
+
+  afterAll(() => {
+    closeDb();
+  });
+
+  it('should update category and person for selected transactions', async () => {
+    const db = getDb();
+    const { lastInsertRowid: personId } = db
+      .prepare('INSERT INTO Person (Name) VALUES (?)')
+      .run('Target Person');
+
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    const { lastInsertRowid: tx1Id } = db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('h1', '2023-01-01', 'T1', 10, fileStageId);
+
+    const { lastInsertRowid: tx2Id } = db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('h2', '2023-01-02', 'T2', 20, fileStageId);
+
+    const response = await request(app)
+      .post(`/api/preview/${fileStageId}/bulk-update`)
+      .send({
+        ids: [tx1Id, tx2Id],
+        categoryId: 'food',
+        personId: Number(personId),
+      });
+
+    expect(response.status).toBe(200);
+
+    const txs = db
+      .prepare('SELECT CategoryId, PersonId FROM TransactionStage WHERE FileStageId = ?')
+      .all(fileStageId) as { CategoryId: string; PersonId: number }[];
+
+    expect(txs[0].CategoryId).toBe('food');
+    expect(txs[0].PersonId).toBe(Number(personId));
+    expect(txs[1].CategoryId).toBe('food');
+    expect(txs[1].PersonId).toBe(Number(personId));
+  });
+
+  it('should update all transactions in file if ids is missing', async () => {
+    const db = getDb();
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    db.prepare(
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+    ).run('h1', '2023-01-01', 'T1', 10, fileStageId);
+    db.prepare(
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+    ).run('h2', '2023-01-02', 'T2', 20, fileStageId);
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/bulk-update`).send({
+      categoryId: 'shopping',
+    });
+
+    expect(response.status).toBe(200);
+
+    const txs = db
+      .prepare('SELECT CategoryId FROM TransactionStage WHERE FileStageId = ?')
+      .all(fileStageId) as { CategoryId: string }[];
+
+    expect(txs).toHaveLength(2);
+    expect(txs[0].CategoryId).toBe('shopping');
+    expect(txs[1].CategoryId).toBe('shopping');
+  });
+
+  it('should return 400 if transaction does not belong to file', async () => {
+    const db = getDb();
+    const { lastInsertRowid: f1 } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('f1');
+    const { lastInsertRowid: f2 } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('f2');
+
+    const { lastInsertRowid: tx1 } = db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('h1', '2023-01-01', 'T1', 10, f1);
+
+    const response = await request(app)
+      .post(`/api/preview/${f2}/bulk-update`)
+      .send({
+        ids: [tx1],
+        categoryId: 'food',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('do not belong to this file');
   });
 });

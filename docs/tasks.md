@@ -54,7 +54,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Implement a drag-and-drop upload zone on the `TransactionsPage`.
     - Handle navigation to the `PreviewPage` after a successful upload.
     - Display the filename and a basic table of staged transactions.
-- [ ] **2.4 Preview API & Refinement**: Implement preview logic with duplicate detection.
+- [x] **2.4 Preview API & Refinement**: Implement preview logic with duplicate detection.
   - **Requirements**:
     - Implement `GET /api/preview/:id` to fetch staged data.
     - Implement hash calculation (Month-Day-Description-Amount-AccountId) for duplicate detection against the main `Transaction` table.
