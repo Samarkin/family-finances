@@ -24,7 +24,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Ensure the script is idempotent (safe to run multiple times).
     - Store the database file in a `server/data/` directory.
   - _Note_: Categories are hardcoded in the application logic, not stored in the DB.
-- [ ] **1.3 Backend Core**: Express server setup and database integration.
+- [x] **1.3 Backend Core**: Express server setup and database integration.
   - **Requirements**:
     - Initialize the Express application in `server/src/index.ts`.
     - Create a database connection utility that supports both a persistent file-based database and an in-memory (`:memory:`) database for testing.

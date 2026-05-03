@@ -10,6 +10,6 @@ Key documents to review:
 ## Code Quality
 
 After every logically complete change, you MUST run:
+
 - `npm run lint`
 - `npm run format`
-
