@@ -48,7 +48,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Store file metadata in the `FileStage` table.
     - Use the CSV Parsing Service to process the file and populate the `TransactionStage` table with raw data.
     - Return the `FileStageId` to the client for subsequent preview.
-- [ ] **2.3 Basic Preview UI**: React page for file upload and initial staging view.
+- [x] **2.3 Basic Preview UI**: React page for file upload and initial staging view.
   - **Requirements**:
     - Create a `PreviewPage` component in the client.
     - Implement a drag-and-drop upload zone on the `TransactionsPage`.
