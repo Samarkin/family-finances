@@ -61,7 +61,14 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Implement `PUT /api/preview/:id/sign` to toggle sign inversion for the entire file.
     - Implement `PUT /api/preview/:id/account` to associate an account with the staged file.
     - Implement `POST /api/preview/:id/bulk-update` for batch assigning Category and Person to selected staged rows.
-- [ ] **2.5 Data Commitment**: Move unique transactions from staging to main tables.
+- [ ] **2.5 Bulk Updates UI**: Multi-select and bulk-edit on the Preview page.
+  - **Requirements**:
+    - Implement row selection in the Material-UI table on the `PreviewPage`.
+    - Add a toolbar or action section that appears when rows are selected.
+    - Provide dropdowns to select Category and Person for the selected rows.
+    - Call `POST /api/preview/:id/bulk-update` when the user applies the changes.
+    - Update the local state or re-fetch data after a successful bulk update.
+- [ ] **2.6 Data Commitment**: Move unique transactions from staging to main tables.
   - **Requirements**:
     - Implement the `POST /api/preview/:id/submit` endpoint.
     - Validate that all mandatory fields (Account, Category, Person) are present for all staged rows.
@@ -85,5 +92,4 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 ## Phase 5: Refinement & Automation
 
 - [ ] **5.1 Heuristic Guessing**: Regex-based auto-assignment of Account, Category, and Person.
-- [ ] **5.2 Bulk Updates UI**: Multi-select and bulk-edit on the Preview page.
-- [ ] **5.3 Deep Linking**: Navigation from charts to filtered Transaction views.
+- [ ] **5.2 Deep Linking**: Navigation from charts to filtered Transaction views.
