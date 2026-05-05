@@ -1,3 +1,5 @@
+import { CategoryId } from '../constants/categories.js';
+
 export interface AccountRow {
   AccountId: number;
   Name: string;
@@ -26,6 +28,6 @@ export interface TransactionStageRow {
   Description: string;
   Amount: number;
   RawCategory: string | null;
-  CategoryId: string | null;
+  CategoryId: CategoryId | null;
   PersonId: number | null;
 }

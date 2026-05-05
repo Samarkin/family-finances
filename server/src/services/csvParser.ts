@@ -1,10 +1,12 @@
 import Papa from 'papaparse';
+import { RAW_CATEGORY_MAP, CategoryId } from '../constants/categories.js';
 
 export interface NormalizedTransaction {
   date: string; // YYYY-MM-DD
   description: string;
   amount: number;
   rawCategory?: string;
+  categoryId?: CategoryId;
   rawAccount?: string;
   rawPerson?: string;
 }
@@ -85,11 +87,15 @@ export function parseCSV(csvContent: string): NormalizedTransaction[] {
       amount = debit - credit;
     }
 
+    const rawCategory = categoryCol ? row[categoryCol] : undefined;
+    const categoryId = rawCategory ? RAW_CATEGORY_MAP[rawCategory] : undefined;
+
     return {
       date: parseDate(row[dateCol]),
       description: row[descCol] || '',
       amount: amount,
-      rawCategory: categoryCol ? row[categoryCol] : undefined,
+      rawCategory,
+      categoryId,
       rawAccount: accountCol ? row[accountCol] : undefined,
       rawPerson: personCol ? row[personCol] : undefined,
     };

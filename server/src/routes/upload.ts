@@ -64,8 +64,8 @@ router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
 
       // 3. Insert into TransactionStage
       const insertTxStage = db.prepare(`
-        INSERT INTO TransactionStage (Hash, Date, Description, Amount, RawCategory, FileStageId, PersonId)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO TransactionStage (Hash, Date, Description, Amount, RawCategory, CategoryId, FileStageId, PersonId)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const personStatements = db
@@ -95,6 +95,7 @@ router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
           tx.description,
           tx.amount,
           tx.rawCategory || null,
+          tx.categoryId || null,
           newFileStageId,
           txPersonId,
         );

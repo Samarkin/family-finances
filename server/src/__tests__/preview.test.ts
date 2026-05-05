@@ -54,7 +54,12 @@ describe('GET /api/preview/:id', () => {
           rawCategory: 'Food',
         },
       ],
+      categories: expect.any(Array),
+      persons: expect.any(Array),
     });
+    expect(response.body.categories.length).toBeGreaterThan(0);
+    expect(response.body.persons).toHaveLength(1); // 'Family' is seeded by default
+    expect(response.body.persons[0].name).toBe('Family');
     expect(response.body.transactions[0]).not.toHaveProperty('Hash');
     expect(response.body.transactions[0]).not.toHaveProperty('FileStageId');
     expect(response.body.transactions[0]).not.toHaveProperty('isDuplicate');

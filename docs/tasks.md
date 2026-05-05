@@ -61,7 +61,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Implement `PUT /api/preview/:id/sign` to toggle sign inversion for the entire file.
     - Implement `PUT /api/preview/:id/account` to associate an account with the staged file.
     - Implement `POST /api/preview/:id/bulk-update` for batch assigning Category and Person to selected staged rows.
-- [ ] **2.5 Bulk Updates UI**: Multi-select and bulk-edit on the Preview page.
+- [x] **2.5 Bulk Updates UI**: Multi-select and bulk-edit on the Preview page.
   - **Requirements**:
     - Implement row selection in the Material-UI table on the `PreviewPage`.
     - Add a toolbar or action section that appears when rows are selected.

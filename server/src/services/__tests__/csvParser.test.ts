@@ -3,7 +3,7 @@ import { parseCSV } from '../csvParser.js';
 describe('csvParser', () => {
   it('should parse a standard single-column amount CSV', () => {
     const csv = `Date,Description,Amount,Category
-2025-04-23,Grocery Store,25.50,Food
+2025-04-23,Grocery Store,25.50,Dining
 2025-04-24,Salary,-3000.00,Income`;
 
     const result = parseCSV(csv);
@@ -13,11 +13,13 @@ describe('csvParser', () => {
       date: '2025-04-23',
       description: 'Grocery Store',
       amount: 25.5,
-      rawCategory: 'Food',
+      rawCategory: 'Dining',
+      categoryId: 'food',
       rawAccount: undefined,
       rawPerson: undefined,
     });
     expect(result[1].amount).toBe(-3000.0);
+    expect(result[1].categoryId).toBeUndefined();
   });
 
   it('should handle different column names case-insensitively', () => {
@@ -79,5 +81,20 @@ Value1,Value2,Value3`;
     expect(result[1].date).toBe('2025-04-23');
     expect(result[2].date).toBe('2025-04-23');
     expect(result[3].date).toBe('2025-04-23');
+  });
+
+  it('should auto-assign categoryId based on RawCategory mapping', () => {
+    const csv = `Date,Description,Amount,Category
+2025-01-01,Delta Airlines,500.00,Airfare
+2025-01-02,Whole Foods,80.00,Grocery
+2025-01-03,Unknown Store,10.00,Something Else`;
+
+    const result = parseCSV(csv);
+    expect(result[0].rawCategory).toBe('Airfare');
+    expect(result[0].categoryId).toBe('travel');
+    expect(result[1].rawCategory).toBe('Grocery');
+    expect(result[1].categoryId).toBe('groceries');
+    expect(result[2].rawCategory).toBe('Something Else');
+    expect(result[2].categoryId).toBeUndefined();
   });
 });

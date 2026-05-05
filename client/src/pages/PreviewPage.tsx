@@ -1,15 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
   Typography,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   CircularProgress,
   Alert,
   FormControl,
@@ -25,10 +19,28 @@ import {
   DialogActions,
   Button,
   TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Checkbox,
+  TableSortLabel,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 
 interface Account {
+  id: number;
+  name: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Person {
   id: number;
   name: string;
 }
@@ -40,7 +52,7 @@ interface StagedTransaction {
   amount: number;
   rawCategory?: string;
   categoryId?: string;
-  personId?: string;
+  personId?: number;
 }
 
 interface PreviewData {
@@ -49,7 +61,11 @@ interface PreviewData {
   duplicateCount: number;
   accountId: number | null;
   sign: boolean;
+  categories: Category[];
+  persons: Person[];
 }
+
+type Order = 'asc' | 'desc';
 
 export default function PreviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +73,14 @@ export default function PreviewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Selection & Sort state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
+  const [order, setOrder] = useState<Order>('asc');
+  const [orderBy, setOrderBy] = useState<keyof StagedTransaction>('date');
+  const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(true);
+  const [, setHasInitializedFilter] = useState(false);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,6 +95,21 @@ export default function PreviewPage() {
       }
       const previewData = await response.json();
       setData(previewData);
+
+      // Initialize the filter based on the initial fetch
+      setHasInitializedFilter((prev) => {
+        if (!prev) {
+          const allReviewed = previewData.transactions.every(
+            (tx: StagedTransaction) => tx.categoryId && tx.personId,
+          );
+          setShowOnlyNeedsReview(!allReviewed);
+          return true;
+        }
+        return prev;
+      });
+
+      // Clear selection if transactions changed significantly
+      setSelectedIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
@@ -142,6 +181,52 @@ export default function PreviewPage() {
     }
   };
 
+  const ensureSelected = (txId: number) => {
+    if (!selectedIds.has(txId)) {
+      const next = new Set(selectedIds);
+      next.add(txId);
+      setSelectedIds(next);
+    }
+  };
+
+  const handleBulkUpdate = async (
+    ids: number[],
+    categoryId?: string,
+    personId?: number | string,
+  ) => {
+    if (ids.length === 0) return;
+    if (categoryId === undefined && personId === undefined) return;
+
+    try {
+      const response = await fetch(`/api/preview/${id}/bulk-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids,
+          categoryId: categoryId || undefined,
+          personId: personId || undefined,
+        }),
+      });
+
+      if (response.ok) {
+        fetchPreview();
+      }
+    } catch (err) {
+      console.error('Bulk update failed:', err);
+    }
+  };
+
+  const handleInlineChange = async (field: 'categoryId' | 'personId', value: string | number) => {
+    // Row is already selected via onOpen
+    const idsToUpdate = Array.from(selectedIds);
+
+    if (field === 'categoryId') {
+      await handleBulkUpdate(idsToUpdate, value as string, undefined);
+    } else {
+      await handleBulkUpdate(idsToUpdate, undefined, value as number);
+    }
+  };
+
   const handleModalClose = () => {
     setIsModalOpen(false);
     setNewAccountName('');
@@ -170,17 +255,101 @@ export default function PreviewPage() {
         const errData = await response.json();
         setModalError(errData.error || 'Failed to create account');
       }
-    } catch (_err) {
+    } catch {
       setModalError('An unexpected error occurred');
     }
+  };
+
+  const handleRequestSort = (property: keyof StagedTransaction) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const sortedTransactions = useMemo(() => {
+    if (!data) return [];
+
+    let txs = data.transactions;
+    if (showOnlyNeedsReview) {
+      txs = txs.filter((tx) => !tx.categoryId || !tx.personId);
+    }
+
+    return [...txs].sort((a, b) => {
+      let aVal: string | number = a[orderBy] as string | number;
+      let bVal: string | number = b[orderBy] as string | number;
+
+      // For personId and categoryId, sort by name instead of id if possible
+      if (orderBy === 'personId') {
+        aVal = data.persons.find((p) => p.id === a.personId)?.name || '';
+        bVal = data.persons.find((p) => p.id === b.personId)?.name || '';
+      } else if (orderBy === 'categoryId') {
+        aVal = data.categories.find((c) => c.id === a.categoryId)?.name || '';
+        bVal = data.categories.find((c) => c.id === b.categoryId)?.name || '';
+      }
+
+      // Fallback
+      if (aVal === undefined || aVal === null) aVal = '';
+      if (bVal === undefined || bVal === null) bVal = '';
+
+      if (aVal < bVal) return order === 'asc' ? -1 : 1;
+      if (aVal > bVal) return order === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [data, order, orderBy, showOnlyNeedsReview]);
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked && sortedTransactions.length > 0) {
+      setSelectedIds(new Set(sortedTransactions.map((tx) => tx.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+    setLastSelectedId(null);
+  };
+
+  const handleRowClick = (
+    event: React.MouseEvent<HTMLTableRowElement, MouseEvent>,
+    txId: number,
+  ) => {
+    if (event.shiftKey && lastSelectedId !== null) {
+      const currentIndex = sortedTransactions.findIndex((tx) => tx.id === txId);
+      const lastIndex = sortedTransactions.findIndex((tx) => tx.id === lastSelectedId);
+
+      if (currentIndex !== -1 && lastIndex !== -1) {
+        const start = Math.min(currentIndex, lastIndex);
+        const end = Math.max(currentIndex, lastIndex);
+
+        const next = new Set(selectedIds);
+        for (let i = start; i <= end; i++) {
+          next.add(sortedTransactions[i].id);
+        }
+        setSelectedIds(next);
+        setLastSelectedId(txId);
+        return;
+      }
+    }
+
+    const next = new Set(selectedIds);
+    if (next.has(txId)) {
+      next.delete(txId);
+      setLastSelectedId(null);
+    } else {
+      next.add(txId);
+      setLastSelectedId(txId);
+    }
+    setSelectedIds(next);
   };
 
   if (loading) return <CircularProgress />;
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!data) return <Alert severity="warning">No data found</Alert>;
 
+  const allSelected =
+    sortedTransactions.length > 0 && sortedTransactions.every((tx) => selectedIds.has(tx.id));
+  const hasRawCategory = data.transactions.some((tx) => !!tx.rawCategory);
+  const needsReviewCount = data.transactions.filter((tx) => !tx.categoryId || !tx.personId).length;
+
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0 }}>
       <Typography variant="h4" gutterBottom>
         Preview: {data.filename}
       </Typography>
@@ -214,6 +383,16 @@ export default function PreviewPage() {
           label="Invert Signs"
         />
 
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showOnlyNeedsReview}
+              onChange={(e) => setShowOnlyNeedsReview(e.target.checked)}
+            />
+          }
+          label={`Needs Review (${needsReviewCount})`}
+        />
+
         <Box sx={{ flexGrow: 1 }} />
 
         <Typography variant="subtitle1">
@@ -221,23 +400,142 @@ export default function PreviewPage() {
         </Typography>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table size="small">
+      <TableContainer component={Paper} sx={{ flexGrow: 1, minHeight: 0 }}>
+        <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>Date</TableCell>
-              <TableCell>Description</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell>Raw Category</TableCell>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  indeterminate={
+                    selectedIds.size > 0 && selectedIds.size < data.transactions.length
+                  }
+                  checked={allSelected}
+                  onChange={handleSelectAll}
+                />
+              </TableCell>
+              <TableCell sx={{ width: 110 }}>
+                <TableSortLabel
+                  active={orderBy === 'date'}
+                  direction={orderBy === 'date' ? order : 'asc'}
+                  onClick={() => handleRequestSort('date')}
+                >
+                  Date
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={orderBy === 'description'}
+                  direction={orderBy === 'description' ? order : 'asc'}
+                  onClick={() => handleRequestSort('description')}
+                >
+                  Description
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right" sx={{ width: 100 }}>
+                <TableSortLabel
+                  active={orderBy === 'amount'}
+                  direction={orderBy === 'amount' ? order : 'asc'}
+                  onClick={() => handleRequestSort('amount')}
+                >
+                  Amount
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ width: 130 }}>
+                <TableSortLabel
+                  active={orderBy === 'personId'}
+                  direction={orderBy === 'personId' ? order : 'asc'}
+                  onClick={() => handleRequestSort('personId')}
+                >
+                  Person
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ width: 200 }}>
+                <TableSortLabel
+                  active={orderBy === 'categoryId'}
+                  direction={orderBy === 'categoryId' ? order : 'asc'}
+                  onClick={() => handleRequestSort('categoryId')}
+                >
+                  Category
+                </TableSortLabel>
+              </TableCell>
+              {hasRawCategory && (
+                <TableCell sx={{ width: 150 }}>
+                  <TableSortLabel
+                    active={orderBy === 'rawCategory'}
+                    direction={orderBy === 'rawCategory' ? order : 'asc'}
+                    onClick={() => handleRequestSort('rawCategory')}
+                  >
+                    Raw Category
+                  </TableSortLabel>
+                </TableCell>
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.transactions.map((tx) => (
-              <TableRow key={tx.id}>
+            {sortedTransactions.map((tx) => (
+              <TableRow
+                key={tx.id}
+                selected={selectedIds.has(tx.id)}
+                hover
+                onClick={(e) => handleRowClick(e, tx.id)}
+                onMouseDown={(e) => {
+                  if (e.shiftKey) {
+                    e.preventDefault();
+                  }
+                }}
+                sx={{ cursor: 'pointer' }}
+              >
+                <TableCell padding="checkbox">
+                  <Checkbox checked={selectedIds.has(tx.id)} />
+                </TableCell>
                 <TableCell>{tx.date}</TableCell>
                 <TableCell>{tx.description}</TableCell>
                 <TableCell align="right">{tx.amount.toFixed(2)}</TableCell>
-                <TableCell>{tx.rawCategory || '-'}</TableCell>
+                <TableCell>
+                  <FormControl size="small" fullWidth sx={{ mt: 0.5 }}>
+                    <Select
+                      value={tx.personId || ''}
+                      displayEmpty
+                      onChange={(e) => handleInlineChange('personId', e.target.value as number)}
+                      onOpen={() => ensureSelected(tx.id)}
+                      error={!tx.personId}
+                      sx={{ fontSize: '0.875rem' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MenuItem value="" disabled sx={{ fontSize: '0.875rem' }}>
+                        <em>Select...</em>
+                      </MenuItem>
+                      {data.persons.map((person) => (
+                        <MenuItem key={person.id} value={person.id} sx={{ fontSize: '0.875rem' }}>
+                          {person.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </TableCell>
+                <TableCell>
+                  <FormControl size="small" fullWidth sx={{ mt: 0.5 }}>
+                    <Select
+                      value={tx.categoryId || ''}
+                      displayEmpty
+                      onChange={(e) => handleInlineChange('categoryId', e.target.value as string)}
+                      onOpen={() => ensureSelected(tx.id)}
+                      error={!tx.categoryId}
+                      sx={{ fontSize: '0.875rem' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MenuItem value="" disabled sx={{ fontSize: '0.875rem' }}>
+                        <em>Select...</em>
+                      </MenuItem>
+                      {data.categories.map((cat) => (
+                        <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: '0.875rem' }}>
+                          {cat.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </TableCell>
+                {hasRawCategory && <TableCell>{tx.rawCategory || '-'}</TableCell>}
               </TableRow>
             ))}
           </TableBody>

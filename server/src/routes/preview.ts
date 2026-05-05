@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getDb } from '../db/connection.js';
 import { FileStageRow, TransactionStageRow } from '../db/types.js';
 import { calculateTransactionHash } from '../utils/hash.js';
+import { CATEGORY_LIST } from '../constants/categories.js';
 
 const router = Router();
 
@@ -47,12 +48,16 @@ router.get('/preview/:id', (req: Request, res: Response) => {
       })
       .filter((tx) => tx !== null);
 
+    const persons = db.prepare('SELECT PersonId as id, Name as name FROM Person').all();
+
     res.json({
       filename: fileStage.Filename,
       transactions: filteredTransactions,
       duplicateCount,
       accountId: fileStage.AccountId,
       sign: !!fileStage.Sign,
+      categories: CATEGORY_LIST,
+      persons,
     });
   } catch (error) {
     console.error('Preview error:', error);

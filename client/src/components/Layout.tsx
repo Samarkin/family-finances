@@ -65,7 +65,18 @@ export default function Layout() {
           </List>
         </Box>
       </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: `calc(100vw - ${drawerWidth}px)`,
+          overflowX: 'hidden',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <Toolbar />
         <Outlet />
       </Box>
