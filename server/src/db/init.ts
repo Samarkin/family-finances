@@ -67,7 +67,8 @@ export function initDb(dbPath: string) {
       FileStageId INTEGER NOT NULL,
       PersonId INTEGER,
       FOREIGN KEY (FileStageId) REFERENCES FileStage(FileStageId) ON DELETE CASCADE,
-      FOREIGN KEY (PersonId) REFERENCES Person(PersonId)
+      FOREIGN KEY (PersonId) REFERENCES Person(PersonId),
+      UNIQUE(FileStageId, Hash)
     );
 
     CREATE TABLE IF NOT EXISTS CategoryMapping (

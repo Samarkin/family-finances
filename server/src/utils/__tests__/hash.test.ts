@@ -31,6 +31,12 @@ describe('calculateTransactionHash', () => {
     expect(hash1).not.toBe(hash2);
   });
 
+  it('should produce the same hash for positive and negative amounts of the same value', () => {
+    const hash1 = calculateTransactionHash('2023-01-01', 'Test', 10.0, 1);
+    const hash2 = calculateTransactionHash('2023-01-01', 'Test', -10.0, 1);
+    expect(hash1).toBe(hash2);
+  });
+
   it('should handle null accountId', () => {
     const hash1 = calculateTransactionHash('2023-01-01', 'Test', 10.0, null);
     const hash2 = calculateTransactionHash('2023-01-01', 'Test', 10.0, undefined);

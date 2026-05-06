@@ -83,22 +83,48 @@ router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
           }
         }
 
-        const hash = calculateTransactionHash(
+        let currentDescription = tx.description;
+        let currentHash = calculateTransactionHash(
           tx.date,
-          tx.description,
+          currentDescription,
           tx.amount,
           guessedAccountId || undefined,
         );
-        insertTxStage.run(
-          hash,
-          tx.date,
-          tx.description,
-          tx.amount,
-          tx.rawCategory || null,
-          tx.categoryId || null,
-          newFileStageId,
-          txPersonId,
-        );
+        let inserted = false;
+        let counter = 0;
+
+        while (!inserted) {
+          try {
+            insertTxStage.run(
+              currentHash,
+              tx.date,
+              currentDescription,
+              tx.amount,
+              tx.rawCategory || null,
+              tx.categoryId || null,
+              newFileStageId,
+              txPersonId,
+            );
+            inserted = true;
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              'code' in error &&
+              error.code === 'SQLITE_CONSTRAINT_UNIQUE'
+            ) {
+              counter++;
+              currentDescription = `${tx.description} (${counter})`;
+              currentHash = calculateTransactionHash(
+                tx.date,
+                currentDescription,
+                tx.amount,
+                guessedAccountId || undefined,
+              );
+            } else {
+              throw error;
+            }
+          }
+        }
       }
 
       return newFileStageId;

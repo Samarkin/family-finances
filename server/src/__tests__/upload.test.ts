@@ -101,6 +101,36 @@ describe('POST /api/upload', () => {
     fs.unlinkSync(filePath);
   });
 
+  it('should handle duplicate transactions by appending suffixes', async () => {
+    const csvContent =
+      'Date,Description,Amount\n2023-01-01,Same Tx,10.00\n2023-01-01,Same Tx,10.00\n2023-01-01,Same Tx,10.00';
+    const filePath = path.join(__dirname, 'dupes.csv');
+    fs.writeFileSync(filePath, csvContent);
+
+    const response = await request(app).post('/api/upload').attach('file', filePath);
+
+    expect(response.status).toBe(200);
+
+    const db = getDb();
+    const transactions = db
+      .prepare(
+        'SELECT * FROM TransactionStage WHERE FileStageId = ? ORDER BY TransactionStageId ASC',
+      )
+      .all(response.body.fileStageId) as TransactionStageRow[];
+
+    expect(transactions).toHaveLength(3);
+    expect(transactions[0].Description).toBe('Same Tx');
+    expect(transactions[1].Description).toBe('Same Tx (1)');
+    expect(transactions[2].Description).toBe('Same Tx (2)');
+
+    // Verify hashes are unique
+    const hashes = transactions.map((t) => t.Hash);
+    const uniqueHashes = new Set(hashes);
+    expect(uniqueHashes.size).toBe(3);
+
+    fs.unlinkSync(filePath);
+  });
+
   it('should return 400 if no file is uploaded', async () => {
     const response = await request(app).post('/api/upload');
     expect(response.status).toBe(400);

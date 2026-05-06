@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../index.js';
 import { closeDb, getDb } from '../db/connection.js';
+import { calculateTransactionHash } from '../utils/hash.js';
 
 describe('GET /api/preview/:id', () => {
   beforeAll(() => {
@@ -157,18 +158,20 @@ describe('PUT /api/preview/:id/sign', () => {
     closeDb();
   });
 
-  it('should toggle sign and update hashes', async () => {
+  it('should toggle sign and keep hashes the same', async () => {
     const db = getDb();
     const { lastInsertRowid: fileStageId } = db
       .prepare('INSERT INTO FileStage (Filename, Sign) VALUES (?, ?)')
       .run('test.csv', 0);
+
+    const initialHash = calculateTransactionHash('2023-01-01', 'Test', 10.0, null);
 
     db.prepare(
       `
       INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId)
       VALUES (?, ?, ?, ?, ?)
     `,
-    ).run('original_hash', '2023-01-01', 'Test', 10.0, fileStageId);
+    ).run(initialHash, '2023-01-01', 'Test', 10.0, fileStageId);
 
     const response = await request(app).put(`/api/preview/${fileStageId}/sign`);
     expect(response.status).toBe(200);
@@ -181,8 +184,8 @@ describe('PUT /api/preview/:id/sign', () => {
     const tx = db
       .prepare('SELECT Hash FROM TransactionStage WHERE FileStageId = ?')
       .get(fileStageId) as { Hash: string };
-    // Hash should have changed because amount used in hash is now -10.0
-    expect(tx.Hash).not.toBe('original_hash');
+    // Hash should be the same because amount used in hash is absolute
+    expect(tx.Hash).toBe(initialHash);
   });
 });
 

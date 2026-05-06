@@ -72,45 +72,19 @@ router.put('/preview/:id/sign', (req: Request, res: Response) => {
   const db = getDb();
 
   try {
-    db.transaction(() => {
-      const fileStage = db
-        .prepare('SELECT * FROM FileStage WHERE FileStageId = ?')
-        .get(id) as FileStageRow;
+    const result = db
+      .prepare(
+        'UPDATE FileStage SET Sign = (CASE WHEN Sign = 0 THEN 1 ELSE 0 END) WHERE FileStageId = ?',
+      )
+      .run(id);
 
-      if (!fileStage) {
-        throw new Error('NOT_FOUND');
-      }
-
-      const newSign = fileStage.Sign ? 0 : 1;
-      db.prepare('UPDATE FileStage SET Sign = ? WHERE FileStageId = ?').run(newSign, id);
-
-      // Recalculate hashes for all transactions in this file
-      const transactions = db
-        .prepare('SELECT * FROM TransactionStage WHERE FileStageId = ?')
-        .all(id) as TransactionStageRow[];
-
-      const updateHash = db.prepare(
-        'UPDATE TransactionStage SET Hash = ? WHERE TransactionStageId = ?',
-      );
-
-      for (const tx of transactions) {
-        const normalizedAmount = newSign ? -tx.Amount : tx.Amount;
-        const hash = calculateTransactionHash(
-          tx.Date,
-          tx.Description,
-          normalizedAmount,
-          fileStage.AccountId,
-        );
-        updateHash.run(hash, tx.TransactionStageId);
-      }
-    })();
-
-    res.json({ success: true });
-  } catch (error) {
-    if ((error as Error).message === 'NOT_FOUND') {
+    if (result.changes === 0) {
       res.status(404).json({ error: 'Staged file not found' });
       return;
     }
+
+    res.json({ success: true });
+  } catch (error) {
     console.error('Sign toggle error:', error);
     res.status(500).json({ error: 'Failed to toggle sign', message: (error as Error).message });
   }
@@ -143,8 +117,8 @@ router.put('/preview/:id/account', (req: Request, res: Response) => {
       );
 
       for (const tx of transactions) {
-        const normalizedAmount = fileStage.Sign ? -tx.Amount : tx.Amount;
-        const hash = calculateTransactionHash(tx.Date, tx.Description, normalizedAmount, accountId);
+        // Hash uses absolute value of amount, so we don't need to check fileStage.Sign
+        const hash = calculateTransactionHash(tx.Date, tx.Description, tx.Amount, accountId);
         updateHash.run(hash, tx.TransactionStageId);
       }
     })();
