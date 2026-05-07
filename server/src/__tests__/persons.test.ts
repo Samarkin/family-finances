@@ -4,10 +4,6 @@ import app from '../index.js';
 import { getDb, closeDb } from '../db/connection.js';
 
 describe('POST /api/persons', () => {
-  beforeAll(() => {
-    process.env.DB_PATH = ':memory:';
-  });
-
   beforeEach(() => {
     const db = getDb();
     db.prepare('DELETE FROM TransactionStage').run();

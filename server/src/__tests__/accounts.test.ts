@@ -4,7 +4,6 @@ import { getDb, closeDb } from '../db/connection.js';
 
 describe('GET /api/accounts', () => {
   beforeAll(() => {
-    process.env.DB_PATH = ':memory:';
     const db = getDb();
     db.prepare('INSERT INTO Account (Name) VALUES (?)').run('Test Bank');
     db.prepare('INSERT INTO Account (Name) VALUES (?)').run('Other Credit Card');

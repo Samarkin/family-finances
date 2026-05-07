@@ -3,10 +3,6 @@ import app from '../index.js';
 import { closeDb } from '../db/connection.js';
 
 describe('GET /api/status', () => {
-  beforeAll(() => {
-    process.env.DB_PATH = ':memory:';
-  });
-
   afterAll(() => {
     closeDb();
   });

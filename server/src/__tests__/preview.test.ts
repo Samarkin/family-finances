@@ -4,10 +4,6 @@ import { closeDb, getDb } from '../db/connection.js';
 import { calculateTransactionHash } from '../utils/hash.js';
 
 describe('GET /api/preview/:id', () => {
-  beforeAll(() => {
-    process.env.DB_PATH = ':memory:';
-  });
-
   afterAll(() => {
     closeDb();
   });
@@ -150,10 +146,6 @@ describe('GET /api/preview/:id', () => {
 });
 
 describe('PUT /api/preview/:id/sign', () => {
-  beforeAll(() => {
-    process.env.DB_PATH = ':memory:';
-  });
-
   afterAll(() => {
     closeDb();
   });
@@ -190,10 +182,6 @@ describe('PUT /api/preview/:id/sign', () => {
 });
 
 describe('PUT /api/preview/:id/account', () => {
-  beforeAll(() => {
-    process.env.DB_PATH = ':memory:';
-  });
-
   afterAll(() => {
     closeDb();
   });
@@ -235,10 +223,6 @@ describe('PUT /api/preview/:id/account', () => {
 });
 
 describe('POST /api/preview/:id/bulk-update', () => {
-  beforeAll(() => {
-    process.env.DB_PATH = ':memory:';
-  });
-
   afterAll(() => {
     closeDb();
   });
