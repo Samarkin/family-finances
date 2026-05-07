@@ -87,6 +87,10 @@ export default function PreviewPage() {
   const [newAccountName, setNewAccountName] = useState('');
   const [modalError, setModalError] = useState<string | null>(null);
 
+  const [isPersonModalOpen, setIsPersonModalOpen] = useState(false);
+  const [newPersonName, setNewPersonName] = useState('');
+  const [personModalError, setPersonModalError] = useState<string | null>(null);
+
   const fetchPreview = useCallback(async () => {
     try {
       const response = await fetch(`/api/preview/${id}`);
@@ -224,6 +228,39 @@ export default function PreviewPage() {
       await handleBulkUpdate(idsToUpdate, value as string, undefined);
     } else {
       await handleBulkUpdate(idsToUpdate, undefined, value as number);
+    }
+  };
+
+  const handlePersonModalClose = () => {
+    setIsPersonModalOpen(false);
+    setNewPersonName('');
+    setPersonModalError(null);
+  };
+
+  const handleCreatePerson = async () => {
+    if (!newPersonName.trim()) {
+      setPersonModalError('Person name is required');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/persons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newPersonName.trim() }),
+      });
+
+      if (response.ok) {
+        const newPerson = await response.json();
+        const idsToUpdate = Array.from(selectedIds);
+        await handleBulkUpdate(idsToUpdate, undefined, newPerson.id);
+        handlePersonModalClose();
+      } else {
+        const errData = await response.json();
+        setPersonModalError(errData.error || 'Failed to create person');
+      }
+    } catch {
+      setPersonModalError('An unexpected error occurred');
     }
   };
 
@@ -496,7 +533,13 @@ export default function PreviewPage() {
                     <Select
                       value={tx.personId || ''}
                       displayEmpty
-                      onChange={(e) => handleInlineChange('personId', e.target.value as number)}
+                      onChange={(e) => {
+                        if (String(e.target.value) === 'ADD_NEW') {
+                          setIsPersonModalOpen(true);
+                        } else {
+                          handleInlineChange('personId', e.target.value as number);
+                        }
+                      }}
                       onOpen={() => ensureSelected(tx.id)}
                       error={!tx.personId}
                       sx={{ fontSize: '0.875rem' }}
@@ -510,6 +553,13 @@ export default function PreviewPage() {
                           {person.name}
                         </MenuItem>
                       ))}
+                      <Divider />
+                      <MenuItem
+                        value="ADD_NEW"
+                        sx={{ fontStyle: 'italic', color: 'primary.main', fontSize: '0.875rem' }}
+                      >
+                        Add new...
+                      </MenuItem>
                     </Select>
                   </FormControl>
                 </TableCell>
@@ -565,6 +615,34 @@ export default function PreviewPage() {
         <DialogActions>
           <Button onClick={handleModalClose}>Cancel</Button>
           <Button onClick={handleCreateAccount} variant="contained">
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={isPersonModalOpen} onClose={handlePersonModalClose} fullWidth maxWidth="sm">
+        <DialogTitle>Add New Person</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Person Name"
+            fullWidth
+            variant="standard"
+            value={newPersonName}
+            onChange={(e) => setNewPersonName(e.target.value)}
+            error={!!personModalError}
+            helperText={personModalError}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleCreatePerson();
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handlePersonModalClose}>Cancel</Button>
+          <Button onClick={handleCreatePerson} variant="contained">
             Create
           </Button>
         </DialogActions>

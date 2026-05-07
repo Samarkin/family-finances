@@ -108,7 +108,8 @@ router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
             inserted = true;
           } catch (error) {
             if (
-              error instanceof Error &&
+              error &&
+              typeof error === 'object' &&
               'code' in error &&
               error.code === 'SQLITE_CONSTRAINT_UNIQUE'
             ) {

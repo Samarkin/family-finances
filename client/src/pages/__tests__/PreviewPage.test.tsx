@@ -229,6 +229,105 @@ describe('PreviewPage', () => {
     });
   });
 
+  it('opens "Add New Person" modal when selected', async () => {
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/accounts')
+        return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+      if (url === '/api/preview/123')
+        return Promise.resolve({ ok: true, json: async () => mockData } as Response);
+      return Promise.reject(new Error('Unknown URL'));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    // Find the inline person select for the first row (the first "Select...")
+    const personSelect = screen.getAllByText('Select...')[0];
+    fireEvent.mouseDown(personSelect);
+
+    // Find and click "Add new..."
+    // Since there are multiple "Add new..." options (one for Account, one for Person per row)
+    // we use getAllByText and click the last one which is in the dropdown portal
+    const addNewOptions = screen.getAllByText('Add new...');
+    fireEvent.click(addNewOptions[addNewOptions.length - 1]);
+
+    // Verify modal is open
+    expect(screen.getByText('Add New Person')).toBeInTheDocument();
+    expect(screen.getByLabelText('Person Name')).toBeInTheDocument();
+  });
+
+  it('creates a new person via modal and auto-assigns to selected transactions', async () => {
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/persons' && options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ id: 3, name: 'Brand New Person' }),
+          } as Response);
+        }
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => mockData } as Response);
+        if (url === '/api/preview/123/bulk-update' && options?.method === 'POST')
+          return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    const personSelect = screen.getAllByText('Select...')[0];
+    fireEvent.mouseDown(personSelect);
+
+    const addNewOptions = screen.getAllByText('Add new...');
+    fireEvent.click(addNewOptions[addNewOptions.length - 1]);
+
+    // Fill name and submit
+    const input = screen.getByLabelText('Person Name');
+    fireEvent.change(input, { target: { value: 'Brand New Person' } });
+    fireEvent.click(screen.getByText('Create'));
+
+    await waitFor(() => {
+      // Check that person creation was called
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/persons',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ name: 'Brand New Person' }),
+        }),
+      );
+      // Check that the bulk-update was called with the new person id
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/preview/123/bulk-update',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ ids: [1], personId: 3 }),
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      // Modal should be closed
+      expect(screen.queryByText('Add New Person')).not.toBeInTheDocument();
+    });
+  });
+
   it('performs inline update and selects unselected rows', async () => {
     mockFetch.mockImplementation((url, options) => {
       if (typeof url === 'string') {

@@ -15,7 +15,7 @@ export const CATEGORIES = {
   utilities: { id: 'utilities', name: 'Bills & Utilities', color: '#ff9900' },
   travel: { id: 'travel', name: 'Travel', color: '#009688' },
   entertainment: { id: 'entertainment', name: 'Entertainment', color: '#109618' },
-  shopping: { id: 'shopping', name: 'Shopping', color: '#990099' },
+  shopping: { id: 'shopping', name: 'Shopping & Toys', color: '#990099' },
   health: { id: 'health', name: 'Health', color: '#0099c6' },
 } as const;
 
