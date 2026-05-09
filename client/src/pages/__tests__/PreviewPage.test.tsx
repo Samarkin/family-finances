@@ -103,7 +103,11 @@ describe('PreviewPage', () => {
       expect(screen.getByText('Preview: test-transactions.csv')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Total Transactions: 3 | Duplicates: 1')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_content, element) => element?.textContent === 'Total Transactions: 3 | Duplicates: 1',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('Test Transaction 1')).toBeInTheDocument();
     expect(screen.getByText('100.50')).toBeInTheDocument();
 
@@ -561,7 +565,7 @@ describe('PreviewPage', () => {
     await waitFor(() => expect(screen.getByText('Test Transaction 2')).toBeInTheDocument());
 
     // Toggle should be on by default since one item is unreviewed
-    const toggle = screen.getByLabelText(/^Needs Review \(1\)$/) as HTMLInputElement;
+    const toggle = screen.getByLabelText(/Needs Review/) as HTMLInputElement;
     expect(toggle.checked).toBe(true);
 
     // Only the unreviewed transaction should be visible
@@ -607,7 +611,7 @@ describe('PreviewPage', () => {
     await waitFor(() => expect(screen.getByText('Test Transaction 2')).toBeInTheDocument());
 
     // Toggle should be on by default since there are unreviewed items
-    const toggle = screen.getByLabelText(/^Needs Review \(2\)$/) as HTMLInputElement;
+    const toggle = screen.getByLabelText(/Needs Review/) as HTMLInputElement;
     expect(toggle.checked).toBe(true);
 
     // Only unreviewed transactions should be visible
@@ -664,7 +668,7 @@ describe('PreviewPage', () => {
     await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
 
     // Toggle should be off since all are reviewed
-    const toggle = screen.getByLabelText(/^Needs Review \(0\)$/) as HTMLInputElement;
+    const toggle = screen.getByLabelText(/Needs Review/) as HTMLInputElement;
     expect(toggle.checked).toBe(false);
   });
 

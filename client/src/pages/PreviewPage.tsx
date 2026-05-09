@@ -461,13 +461,26 @@ export default function PreviewPage() {
               onChange={(e) => setShowOnlyNeedsReview(e.target.checked)}
             />
           }
-          label={`Needs Review (${needsReviewCount})`}
+          label={
+            <Box component="span" sx={{ display: 'inline-flex', gap: 0.5 }}>
+              Needs Review
+              <Typography
+                component="span"
+                sx={{ color: needsReviewCount > 0 ? 'error.main' : 'inherit' }}
+              >
+                ({needsReviewCount})
+              </Typography>
+            </Box>
+          }
         />
 
         <Box sx={{ flexGrow: 1 }} />
 
         <Typography variant="subtitle1">
-          Total Transactions: {data.transactions.length} | Duplicates: {data.duplicateCount}
+          Total Transactions: {data.transactions.length} | Duplicates:{' '}
+          <Box component="span" sx={{ fontWeight: data.duplicateCount > 0 ? 'bold' : 'normal' }}>
+            {data.duplicateCount}
+          </Box>
         </Typography>
       </Box>
 
@@ -508,7 +521,7 @@ export default function PreviewPage() {
                   direction={orderBy === 'amount' ? order : 'asc'}
                   onClick={() => handleRequestSort('amount')}
                 >
-                  Amount
+                  Expense
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ width: 130 }}>
