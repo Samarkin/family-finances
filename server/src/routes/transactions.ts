@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getDb } from '../db/connection.js';
-import { CATEGORY_MAP } from '../constants/categories.js';
+import { CATEGORY_NAMES } from '../constants/categories.js';
 
 const router = Router();
 
@@ -128,7 +128,7 @@ router.get('/transactions', (req, res, next) => {
       totalEarned: summary.totalEarned || 0,
       persons,
       accounts,
-      categories: CATEGORY_MAP,
+      categories: CATEGORY_NAMES,
     });
   } catch (error) {
     next(error);

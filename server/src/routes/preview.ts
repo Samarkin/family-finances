@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getDb } from '../db/connection.js';
 import { FileStageRow, TransactionStageRow } from '../db/types.js';
 import { calculateTransactionHash } from '../utils/hash.js';
-import { CATEGORY_MAP } from '../constants/categories.js';
+import { CATEGORY_NAMES } from '../constants/categories.js';
 
 const router = Router();
 
@@ -62,7 +62,7 @@ router.get('/preview/:id', (req: Request, res: Response) => {
       accountId: fileStage.AccountId,
       sign: !!fileStage.Sign,
       persons,
-      categories: CATEGORY_MAP,
+      categories: CATEGORY_NAMES,
     });
   } catch (error) {
     console.error('Preview error:', error);
