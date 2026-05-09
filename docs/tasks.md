@@ -105,3 +105,4 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 ## Phase 5: Refinement & Automation
 
 - [ ] **5.1 Heuristic Guessing**: Regex-based auto-assignment of Account, Category, and Person.
+- [ ] **5.2 Exclude Payments**: Add an option to exclude payments and transfers from all views and graphs, since the money is neither earned nor spent.
