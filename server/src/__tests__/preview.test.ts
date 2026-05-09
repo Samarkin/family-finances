@@ -422,7 +422,7 @@ describe('POST /api/preview/:id/submit', () => {
     expect(response.body.error).toContain('category and person assigned');
   });
 
-  it('should skip duplicate transactions and apply sign inversion', async () => {
+  it('should skip duplicate transactions (even if incomplete) and apply sign inversion', async () => {
     const db = getDb();
     const { lastInsertRowid: accountId } = db
       .prepare('INSERT INTO Account (Name) VALUES (?)')
@@ -447,9 +447,10 @@ describe('POST /api/preview/:id/submit', () => {
       .prepare('INSERT INTO FileStage (Filename, AccountId, Sign) VALUES (?, ?, ?)')
       .run('test.csv', accountId, 1);
 
+    // Incomplete duplicate transaction (missing CategoryId and PersonId)
     db.prepare(
-      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).run('dupe', '2023-01-01', 'D', 10, 'food', personId, fileStageId);
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+    ).run('dupe', '2023-01-01', 'D', 10, fileStageId);
     db.prepare(
       'INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId) VALUES (?, ?, ?, ?, ?, ?, ?)',
     ).run('new', '2023-01-02', 'N', 20, 'food', personId, fileStageId);

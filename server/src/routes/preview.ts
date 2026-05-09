@@ -215,7 +215,11 @@ router.post('/preview/:id/submit', (req: Request, res: Response) => {
 
     const incomplete = db
       .prepare(
-        'SELECT 1 FROM TransactionStage WHERE FileStageId = ? AND (CategoryId IS NULL OR PersonId IS NULL) LIMIT 1',
+        `SELECT 1 FROM TransactionStage ts 
+         WHERE FileStageId = ? 
+         AND (CategoryId IS NULL OR PersonId IS NULL)
+         AND NOT EXISTS (SELECT 1 FROM "Transaction" t WHERE t.Hash = ts.Hash)
+         LIMIT 1`,
       )
       .get(id);
 
