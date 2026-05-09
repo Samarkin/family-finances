@@ -6,6 +6,7 @@ import uploadRouter from './routes/upload.js';
 import previewRouter from './routes/preview.js';
 import accountsRouter from './routes/accounts.js';
 import personsRouter from './routes/persons.js';
+import transactionsRouter from './routes/transactions.js';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use('/api', uploadRouter);
 app.use('/api', previewRouter);
 app.use('/api', accountsRouter);
 app.use('/api', personsRouter);
+app.use('/api', transactionsRouter);
 
 // GET /api/status endpoint
 app.get('/api/status', (_req, res) => {

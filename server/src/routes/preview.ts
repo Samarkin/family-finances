@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getDb } from '../db/connection.js';
 import { FileStageRow, TransactionStageRow } from '../db/types.js';
 import { calculateTransactionHash } from '../utils/hash.js';
-import { CATEGORY_LIST } from '../constants/categories.js';
+import { CATEGORY_MAP } from '../constants/categories.js';
 
 const router = Router();
 
@@ -48,7 +48,12 @@ router.get('/preview/:id', (req: Request, res: Response) => {
       })
       .filter((tx) => tx !== null);
 
-    const persons = db.prepare('SELECT PersonId as id, Name as name FROM Person').all();
+    const personsRows = db.prepare('SELECT PersonId as id, Name as name FROM Person').all() as {
+      id: number;
+      name: string;
+    }[];
+    const persons: Record<number, string> = {};
+    personsRows.forEach((r) => (persons[r.id] = r.name));
 
     res.json({
       filename: fileStage.Filename,
@@ -56,8 +61,8 @@ router.get('/preview/:id', (req: Request, res: Response) => {
       duplicateCount,
       accountId: fileStage.AccountId,
       sign: !!fileStage.Sign,
-      categories: CATEGORY_LIST,
       persons,
+      categories: CATEGORY_MAP,
     });
   } catch (error) {
     console.error('Preview error:', error);

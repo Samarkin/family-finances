@@ -12,7 +12,7 @@ export const CATEGORIES = {
   food: { id: 'food', name: 'Food & Drinks', color: '#ff3c00' },
   groceries: { id: 'groceries', name: 'Groceries', color: '#4caf50' },
   gas: { id: 'gas', name: 'Gas & Car', color: '#dc3912' },
-  utilities: { id: 'utilities', name: 'Bills & Utilities', color: '#ff9900' },
+  utilities: { id: 'utilities', name: 'Utilities & Bills', color: '#ff9900' },
   travel: { id: 'travel', name: 'Travel', color: '#009688' },
   entertainment: { id: 'entertainment', name: 'Entertainment', color: '#109618' },
   shopping: { id: 'shopping', name: 'Shopping & Toys', color: '#990099' },
@@ -22,6 +22,8 @@ export const CATEGORIES = {
 export type CategoryId = keyof typeof CATEGORIES;
 
 export const CATEGORY_LIST = Object.values(CATEGORIES);
+
+export const CATEGORY_MAP = Object.fromEntries(CATEGORY_LIST.map((c) => [c.id, c.name]));
 
 export const RAW_CATEGORY_MAP: Record<string, CategoryId> = {
   Airfare: 'travel',

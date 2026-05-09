@@ -71,7 +71,7 @@ export default function Layout() {
           flexGrow: 1,
           p: 3,
           width: `calc(100vw - ${drawerWidth}px)`,
-          overflowX: 'hidden',
+          overflow: 'hidden',
           height: '100vh',
           display: 'flex',
           flexDirection: 'column',

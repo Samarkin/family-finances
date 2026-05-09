@@ -80,7 +80,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 
 ## Phase 3: Core Visibility
 
-- [ ] **3.1 Transactions API & Table**: `GET /transactions` with filtering and a display table.
+- [x] **3.1 Transactions API & Table**: `GET /transactions` with filtering and a display table.
   - **Requirements**:
     - Implement `GET /api/transactions` with pagination, and optional month/person filtering.
     - Update `TransactionsPage.tsx` to display transactions using MUI `DataGrid`.
@@ -90,7 +90,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 - [ ] **3.2 Files Management**: `GET /files` and `POST /files/<id>/delete`.
   - **Requirements**:
     - Implement `GET /api/files` returning all non-staged files with account names and transaction date ranges.
-    - Implement `GET /api/stage-files` following the same format, but returning files from `FileStage`.
+    - Implement `GET /api/preview-files` following the same format, but returning files from `FileStage`.
     - Implement `POST /api/files/:id/delete` with cascade delete for transactions.
     - Update `FilesPage.tsx` to list files. Explicitly mark files from `FileStage` as "in review" and add a link to the preview page.
     - Add a delete action with a confirmation dialog. Use `POST /api/preview/:id/discard` for staged files and `POST /api/files/:id/delete` for committed files.

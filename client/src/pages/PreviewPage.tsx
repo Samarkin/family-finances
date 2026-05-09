@@ -35,16 +35,6 @@ interface Account {
   name: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-}
-
-interface Person {
-  id: number;
-  name: string;
-}
-
 interface StagedTransaction {
   id: number;
   date: string;
@@ -61,8 +51,8 @@ interface PreviewData {
   duplicateCount: number;
   accountId: number | null;
   sign: boolean;
-  categories: Category[];
-  persons: Person[];
+  categories: Record<string, string>;
+  persons: Record<number, string>;
 }
 
 type Order = 'asc' | 'desc';
@@ -348,11 +338,11 @@ export default function PreviewPage() {
 
       // For personId and categoryId, sort by name instead of id if possible
       if (orderBy === 'personId') {
-        aVal = data.persons.find((p) => p.id === a.personId)?.name || '';
-        bVal = data.persons.find((p) => p.id === b.personId)?.name || '';
+        aVal = a.personId ? data.persons[a.personId] || '' : '';
+        bVal = b.personId ? data.persons[b.personId] || '' : '';
       } else if (orderBy === 'categoryId') {
-        aVal = data.categories.find((c) => c.id === a.categoryId)?.name || '';
-        bVal = data.categories.find((c) => c.id === b.categoryId)?.name || '';
+        aVal = a.categoryId ? data.categories[a.categoryId] || '' : '';
+        bVal = b.categoryId ? data.categories[b.categoryId] || '' : '';
       }
 
       // Fallback
@@ -595,9 +585,9 @@ export default function PreviewPage() {
                       <MenuItem value="" disabled sx={{ fontSize: '0.875rem' }}>
                         <em>Select...</em>
                       </MenuItem>
-                      {data.persons.map((person) => (
-                        <MenuItem key={person.id} value={person.id} sx={{ fontSize: '0.875rem' }}>
-                          {person.name}
+                      {Object.entries(data.persons).map(([personId, name]) => (
+                        <MenuItem key={personId} value={personId} sx={{ fontSize: '0.875rem' }}>
+                          {name}
                         </MenuItem>
                       ))}
                       <Divider />
@@ -624,9 +614,9 @@ export default function PreviewPage() {
                       <MenuItem value="" disabled sx={{ fontSize: '0.875rem' }}>
                         <em>Select...</em>
                       </MenuItem>
-                      {data.categories.map((cat) => (
-                        <MenuItem key={cat.id} value={cat.id} sx={{ fontSize: '0.875rem' }}>
-                          {cat.name}
+                      {Object.entries(data.categories).map(([id, name]) => (
+                        <MenuItem key={id} value={id} sx={{ fontSize: '0.875rem' }}>
+                          {name}
                         </MenuItem>
                       ))}
                     </Select>

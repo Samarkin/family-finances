@@ -42,14 +42,14 @@ const mockData = {
   duplicateCount: 1,
   accountId: null,
   sign: false,
-  categories: [
-    { id: 'food', name: 'Food & Drinks' },
-    { id: 'groceries', name: 'Groceries' },
-  ],
-  persons: [
-    { id: 1, name: 'Family' },
-    { id: 2, name: 'Alice' },
-  ],
+  categories: {
+    food: 'Food & Drinks',
+    groceries: 'Groceries',
+  },
+  persons: {
+    1: 'Family',
+    2: 'Alice',
+  },
 };
 
 const mockAccounts = [
