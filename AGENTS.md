@@ -40,3 +40,4 @@ Refer to `docs/tasks.md` for the current roadmap and pending tasks.
 2. **Read Docs First**: Always review `docs/architecture.md` and `docs/tasks.md` before starting a new task.
 3. **Local Only**: Avoid any cloud dependencies or CDNs. Everything must run locally.
 4. **Validation**: Always run `npm run lint` and `npm test` before considering a task complete.
+5. **Commiting**: Explore several recent commits to infer an established pattern for commit messages.

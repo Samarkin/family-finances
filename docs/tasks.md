@@ -81,7 +81,20 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 ## Phase 3: Core Visibility
 
 - [ ] **3.1 Transactions API & Table**: `GET /transactions` with filtering and a display table.
+  - **Requirements**:
+    - Implement `GET /api/transactions` with pagination, and optional month/person filtering.
+    - Update `TransactionsPage.tsx` to display transactions using MUI `DataGrid`.
+    - Add a dropdown to filter by month or "All Time" and support deep linking by month via URL parameters.
+    - Display summary headers: total transactions, total spent, and total earned.
+    - Add server integration tests and client component tests.
 - [ ] **3.2 Files Management**: `GET /files` and `POST /files/<id>/delete`.
+  - **Requirements**:
+    - Implement `GET /api/files` returning all non-staged files with account names and transaction date ranges.
+    - Implement `GET /api/stage-files` following the same format, but returning files from `FileStage`.
+    - Implement `POST /api/files/:id/delete` with cascade delete for transactions.
+    - Update `FilesPage.tsx` to list files. Explicitly mark files from `FileStage` as "in review" and add a link to the preview page.
+    - Add a delete action with a confirmation dialog. Use `POST /api/preview/:id/discard` for staged files and `POST /api/files/:id/delete` for committed files.
+    - Add server integration tests and client component tests.
 
 ## Phase 4: Spending Analytics
 
@@ -92,4 +105,3 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 ## Phase 5: Refinement & Automation
 
 - [ ] **5.1 Heuristic Guessing**: Regex-based auto-assignment of Account, Category, and Person.
-- [ ] **5.2 Deep Linking**: Navigation from charts to filtered Transaction views.
