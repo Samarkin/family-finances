@@ -112,9 +112,9 @@ describe('PreviewPage', () => {
     expect(screen.getByLabelText('Invert Signs')).toBeInTheDocument();
 
     // Check for Category and Person columns with MISSING indicators
-    // Both Person and Category are now a Select with "Select..."
+    // Both Person and Category are now a Select with "Select...", plus 1 for Account
     expect(screen.queryByText('MISSING')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Select...')).toHaveLength(6);
+    expect(screen.getAllByText('Select...')).toHaveLength(7);
   });
 
   it('renders error state on fetch failure', async () => {
@@ -248,8 +248,8 @@ describe('PreviewPage', () => {
 
     await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
 
-    // Find the inline person select for the first row (the first "Select...")
-    const personSelect = screen.getAllByText('Select...')[0];
+    // Find the inline person select for the first row (the second "Select...")
+    const personSelect = screen.getAllByText('Select...')[1];
     fireEvent.mouseDown(personSelect);
 
     // Find and click "Add new..."
@@ -292,7 +292,7 @@ describe('PreviewPage', () => {
 
     await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
 
-    const personSelect = screen.getAllByText('Select...')[0];
+    const personSelect = screen.getAllByText('Select...')[1];
     fireEvent.mouseDown(personSelect);
 
     const addNewOptions = screen.getAllByText('Add new...');
@@ -351,8 +351,8 @@ describe('PreviewPage', () => {
 
     await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
 
-    // Open inline category dropdown for the first row (the second "Select..." since the first is for Person)
-    fireEvent.mouseDown(screen.getAllByText('Select...')[1]);
+    // Open inline category dropdown for the first row (the third "Select..." since the first is for Account and second is for Person)
+    fireEvent.mouseDown(screen.getAllByText('Select...')[2]);
     fireEvent.click(screen.getByText('Groceries'));
 
     await waitFor(() => {
@@ -666,5 +666,159 @@ describe('PreviewPage', () => {
     // Toggle should be off since all are reviewed
     const toggle = screen.getByLabelText(/^Needs Review \(0\)$/) as HTMLInputElement;
     expect(toggle.checked).toBe(false);
+  });
+
+  it('disables Submit button if account is missing or needs review', async () => {
+    mockFetch.mockImplementation((url) => {
+      if (url === '/api/accounts')
+        return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+      if (url === '/api/preview/123')
+        return Promise.resolve({ ok: true, json: async () => mockData } as Response);
+      return Promise.reject(new Error('Unknown URL'));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    const submitBtn = screen.getByText('Submit');
+    expect(submitBtn).toBeDisabled();
+  });
+
+  it('enables Submit button when fully reviewed and account is set, and submits successfully', async () => {
+    const readyData = {
+      ...mockData,
+      accountId: 1,
+      transactions: [{ ...mockData.transactions[0], categoryId: 'food', personId: 1 }],
+    };
+
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => readyData } as Response);
+        if (url === '/api/preview/123/submit' && options?.method === 'POST')
+          return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+          <Route path="/transactions" element={<div>Transactions Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    const submitBtn = screen.getByText('Submit');
+    expect(submitBtn).not.toBeDisabled();
+
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/preview/123/submit',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    await waitFor(() => expect(screen.getByText('Transactions Page')).toBeInTheDocument());
+  });
+
+  it('displays error if Submit fails', async () => {
+    const readyData = {
+      ...mockData,
+      accountId: 1,
+      transactions: [{ ...mockData.transactions[0], categoryId: 'food', personId: 1 }],
+    };
+
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => readyData } as Response);
+        if (url === '/api/preview/123/submit' && options?.method === 'POST')
+          return Promise.resolve({
+            ok: false,
+            json: async () => ({ error: 'Submit failed msg' }),
+          } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Submit'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Submit failed msg')).toBeInTheDocument();
+    });
+  });
+
+  it('opens confirmation modal and discards data when confirmed', async () => {
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => mockData } as Response);
+        if (url === '/api/preview/123/discard' && options?.method === 'POST')
+          return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+          <Route path="/transactions" element={<div>Transactions Page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    // Find the Discard button (the one that opens the dialog)
+    // We can find it by its text content since there's only one "Discard" button visible initially
+    const discardBtns = screen.getAllByText('Discard');
+    fireEvent.click(discardBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('Discard File?')).toBeInTheDocument();
+    });
+
+    // If there are multiple, get the last one (which is usually the one in the portal/dialog)
+    const allDiscardBtns = screen.getAllByRole('button', { name: 'Discard' });
+    fireEvent.click(allDiscardBtns[allDiscardBtns.length - 1]);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/preview/123/discard',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    await waitFor(() => expect(screen.getByText('Transactions Page')).toBeInTheDocument());
   });
 });

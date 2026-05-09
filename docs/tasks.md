@@ -68,7 +68,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Provide dropdowns to select Category and Person for the selected rows.
     - Call `POST /api/preview/:id/bulk-update` when the user applies the changes.
     - Update the local state or re-fetch data after a successful bulk update.
-- [ ] **2.6 Data Commitment**: Move unique transactions from staging to main tables.
+- [x] **2.6 Data Commitment**: Move unique transactions from staging to main tables.
   - **Requirements**:
     - Implement the `POST /api/preview/:id/submit` endpoint.
     - Validate that all mandatory fields (Account, Category, Person) are present for all staged rows.

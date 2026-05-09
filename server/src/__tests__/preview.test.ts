@@ -323,3 +323,211 @@ describe('POST /api/preview/:id/bulk-update', () => {
     expect(response.body.error).toContain('do not belong to this file');
   });
 });
+
+describe('POST /api/preview/:id/submit', () => {
+  afterAll(() => {
+    closeDb();
+  });
+
+  beforeEach(() => {
+    const db = getDb();
+    db.prepare('DELETE FROM TransactionStage').run();
+    db.prepare('DELETE FROM FileStage').run();
+    db.prepare('DELETE FROM "Transaction"').run();
+    db.prepare('DELETE FROM "File"').run();
+    db.prepare('DELETE FROM Account').run();
+    db.prepare("DELETE FROM Person WHERE Name != 'Family'").run();
+  });
+
+  it('should successfully submit valid data', async () => {
+    const db = getDb();
+    const { lastInsertRowid: accountId } = db
+      .prepare('INSERT INTO Account (Name) VALUES (?)')
+      .run('Test Account');
+    const { lastInsertRowid: personId } = db
+      .prepare('INSERT INTO Person (Name) VALUES (?)')
+      .run('Test Person');
+
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename, AccountId, Sign) VALUES (?, ?, ?)')
+      .run('test.csv', accountId, 0);
+
+    db.prepare(
+      `
+      INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    ).run('h1', '2023-01-15', 'Test Tx', 100.0, 'food', personId, fileStageId);
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/submit`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+
+    // Verify File was created
+    const file = db.prepare('SELECT * FROM "File"').get() as {
+      Filename: string;
+      AccountId: number;
+    };
+    expect(file.Filename).toBe('test.csv');
+    expect(file.AccountId).toBe(Number(accountId));
+
+    // Verify Transaction was created
+    const tx = db.prepare('SELECT * FROM "Transaction"').get() as {
+      Hash: string;
+      Month: string;
+      DayOfMonth: number;
+      Amount: number;
+      CategoryId: string;
+      PersonId: number;
+    };
+    expect(tx.Hash).toBe('h1');
+    expect(tx.Month).toBe('2023-01');
+    expect(tx.DayOfMonth).toBe(15);
+    expect(tx.Amount).toBe(100.0);
+    expect(tx.CategoryId).toBe('food');
+    expect(tx.PersonId).toBe(Number(personId));
+
+    // Verify FileStage was deleted
+    const count = db.prepare('SELECT COUNT(*) as count FROM FileStage').get() as { count: number };
+    expect(count.count).toBe(0);
+  });
+
+  it('should return 400 if AccountId is missing', async () => {
+    const db = getDb();
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/submit`);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Account must be assigned');
+  });
+
+  it('should return 400 if any transaction is missing category or person', async () => {
+    const db = getDb();
+    const { lastInsertRowid: accountId } = db
+      .prepare('INSERT INTO Account (Name) VALUES (?)')
+      .run('A');
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename, AccountId) VALUES (?, ?)')
+      .run('test.csv', accountId);
+
+    db.prepare(
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+    ).run('h1', '2023-01-01', 'T', 10, fileStageId);
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/submit`);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('category and person assigned');
+  });
+
+  it('should skip duplicate transactions and apply sign inversion', async () => {
+    const db = getDb();
+    const { lastInsertRowid: accountId } = db
+      .prepare('INSERT INTO Account (Name) VALUES (?)')
+      .run('A');
+    const { lastInsertRowid: personId } = db
+      .prepare('INSERT INTO Person (Name) VALUES (?)')
+      .run('P');
+
+    // Existing transaction
+    const { lastInsertRowid: fileId } = db
+      .prepare('INSERT INTO "File" (Filename, AccountId) VALUES (?, ?)')
+      .run('old.csv', accountId);
+    db.prepare(
+      `
+      INSERT INTO "Transaction" (Hash, Month, DayOfMonth, Description, CategoryId, Amount, AccountId, FileId, PersonId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    ).run('dupe', '2023-01', 1, 'D', 'food', 10, accountId, fileId, personId);
+
+    // Staged file with one dupe and one new, and Sign=1
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename, AccountId, Sign) VALUES (?, ?, ?)')
+      .run('test.csv', accountId, 1);
+
+    db.prepare(
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run('dupe', '2023-01-01', 'D', 10, 'food', personId, fileStageId);
+    db.prepare(
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run('new', '2023-01-02', 'N', 20, 'food', personId, fileStageId);
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/submit`);
+    expect(response.status).toBe(200);
+
+    const txs = db.prepare('SELECT Hash, Amount FROM "Transaction" ORDER BY Hash').all() as {
+      Hash: string;
+      Amount: number;
+    }[];
+    expect(txs).toHaveLength(2);
+    expect(txs[0].Hash).toBe('dupe');
+    expect(txs[0].Amount).toBe(10); // Original amount kept
+    expect(txs[1].Hash).toBe('new');
+    expect(txs[1].Amount).toBe(-20); // Sign inverted
+  });
+});
+
+describe('POST /api/preview/:id/discard', () => {
+  afterAll(() => {
+    closeDb();
+  });
+
+  it('should successfully discard data', async () => {
+    const db = getDb();
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    db.prepare(
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+    ).run('h1', '2023-01-01', 'T', 10, fileStageId);
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/discard`);
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+
+    const count = db.prepare('SELECT COUNT(*) as count FROM FileStage').get() as { count: number };
+    expect(count.count).toBe(0);
+
+    const txCount = db.prepare('SELECT COUNT(*) as count FROM TransactionStage').get() as {
+      count: number;
+    };
+    expect(txCount.count).toBe(0);
+  });
+
+  it('should roll back the transaction if validation fails (e.g., missing person)', async () => {
+    const db = getDb();
+    const { lastInsertRowid: accountId } = db
+      .prepare('INSERT INTO Account (Name) VALUES (?)')
+      .run('A');
+
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename, AccountId) VALUES (?, ?)')
+      .run('test.csv', accountId);
+
+    // This transaction is missing a person, which should trigger an error and rollback
+    db.prepare(
+      'INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, FileStageId) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run('h1', '2023-01-01', 'T', 10, 'food', fileStageId);
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/submit`);
+    expect(response.status).toBe(400);
+
+    // Verify that the File record was NOT created due to rollback
+    const fileCount = db.prepare('SELECT COUNT(*) as count FROM "File"').get() as { count: number };
+    expect(fileCount.count).toBe(0);
+
+    // Verify that FileStage still exists
+    const stageCount = db.prepare('SELECT COUNT(*) as count FROM FileStage').get() as {
+      count: number;
+    };
+    expect(stageCount.count).toBe(1);
+  });
+
+  it('should return 404 if file not found', async () => {
+    const response = await request(app).post('/api/preview/9999/discard');
+    expect(response.status).toBe(404);
+  });
+});

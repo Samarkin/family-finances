@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -69,6 +69,9 @@ type Order = 'asc' | 'desc';
 
 export default function PreviewPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const [data, setData] = useState<PreviewData | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +93,34 @@ export default function PreviewPage() {
   const [isPersonModalOpen, setIsPersonModalOpen] = useState(false);
   const [newPersonName, setNewPersonName] = useState('');
   const [personModalError, setPersonModalError] = useState<string | null>(null);
+
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitError(null);
+    try {
+      const response = await fetch(`/api/preview/${id}/submit`, { method: 'POST' });
+      if (response.ok) {
+        navigate('/transactions');
+      } else {
+        const errData = await response.json();
+        setSubmitError(errData.error || 'Failed to submit data');
+      }
+    } catch {
+      setSubmitError('An unexpected error occurred');
+    }
+  };
+
+  const handleDiscard = async () => {
+    try {
+      const response = await fetch(`/api/preview/${id}/discard`, { method: 'POST' });
+      if (response.ok) {
+        navigate('/transactions');
+      }
+    } catch (err) {
+      console.error('Failed to discard:', err);
+    }
+  };
 
   const fetchPreview = useCallback(async () => {
     try {
@@ -392,16 +423,19 @@ export default function PreviewPage() {
       </Typography>
 
       <Box sx={{ display: 'flex', flexDirection: 'row', gap: 3, alignItems: 'center', mb: 3 }}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="account-select-label">Account</InputLabel>
+        <FormControl sx={{ minWidth: 200 }} error={!data.accountId}>
+          <InputLabel id="account-select-label" shrink>
+            Account
+          </InputLabel>
           <Select
             labelId="account-select-label"
             value={data.accountId || ''}
             label="Account"
             onChange={handleAccountChange}
+            displayEmpty
           >
-            <MenuItem value="">
-              <em>None</em>
+            <MenuItem value="" disabled>
+              <em>Select...</em>
             </MenuItem>
             {accounts.map((account) => (
               <MenuItem key={account.id} value={account.id}>
@@ -592,6 +626,34 @@ export default function PreviewPage() {
         </Table>
       </TableContainer>
 
+      <Box
+        sx={{
+          mt: 2,
+          mb: 2,
+          display: 'flex',
+          gap: 2,
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+        }}
+      >
+        {submitError && (
+          <Alert severity="error" sx={{ flexGrow: 1 }}>
+            {submitError}
+          </Alert>
+        )}
+        <Button variant="outlined" onClick={() => setIsDiscardDialogOpen(true)}>
+          Discard
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSubmit}
+          disabled={needsReviewCount > 0 || !data.accountId}
+        >
+          Submit
+        </Button>
+      </Box>
+
       <Dialog open={isModalOpen} onClose={handleModalClose} fullWidth maxWidth="sm">
         <DialogTitle>Add New Account</DialogTitle>
         <DialogContent>
@@ -644,6 +706,26 @@ export default function PreviewPage() {
           <Button onClick={handlePersonModalClose}>Cancel</Button>
           <Button onClick={handleCreatePerson} variant="contained">
             Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={isDiscardDialogOpen}
+        onClose={() => setIsDiscardDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Discard File?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to discard this file? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsDiscardDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDiscard} color="error" variant="contained">
+            Discard
           </Button>
         </DialogActions>
       </Dialog>

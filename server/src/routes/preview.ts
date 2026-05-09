@@ -194,4 +194,100 @@ router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
   }
 });
 
+router.post('/preview/:id/submit', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const db = getDb();
+
+  try {
+    db.prepare('BEGIN TRANSACTION').run();
+
+    const fileStage = db
+      .prepare('SELECT * FROM FileStage WHERE FileStageId = ?')
+      .get(id) as FileStageRow;
+
+    if (!fileStage) {
+      throw new Error('NOT_FOUND');
+    }
+
+    if (fileStage.AccountId === null) {
+      throw new Error('MISSING_ACCOUNT');
+    }
+
+    const incomplete = db
+      .prepare(
+        'SELECT 1 FROM TransactionStage WHERE FileStageId = ? AND (CategoryId IS NULL OR PersonId IS NULL) LIMIT 1',
+      )
+      .get(id);
+
+    if (incomplete) {
+      throw new Error('INCOMPLETE_TRANSACTIONS');
+    }
+
+    // Create main File record
+    const { lastInsertRowid: fileId } = db
+      .prepare('INSERT INTO "File" (Filename, AccountId) VALUES (?, ?)')
+      .run(fileStage.Filename, fileStage.AccountId);
+
+    // Move non-duplicate transactions using a single SQL query
+    db.prepare(
+      `
+      INSERT OR IGNORE INTO "Transaction" (Hash, Month, DayOfMonth, Description, CategoryId, Amount, AccountId, FileId, PersonId)
+      SELECT 
+        Hash, 
+        substr(Date, 1, 7), 
+        CAST(substr(Date, 9, 2) AS INTEGER), 
+        Description, 
+        CategoryId, 
+        CASE WHEN ? = 1 THEN -Amount ELSE Amount END, 
+        ?, 
+        ?, 
+        PersonId 
+      FROM TransactionStage 
+      WHERE FileStageId = ?
+    `,
+    ).run(fileStage.Sign ? 1 : 0, fileStage.AccountId, fileId, id);
+
+    // Delete staged data (cascade delete handles TransactionStage)
+    db.prepare('DELETE FROM FileStage WHERE FileStageId = ?').run(id);
+
+    db.prepare('COMMIT').run();
+
+    res.json({ success: true });
+  } catch (error) {
+    if (db.inTransaction) {
+      db.prepare('ROLLBACK').run();
+    }
+    const msg = (error as Error).message;
+    if (msg === 'NOT_FOUND') {
+      res.status(404).json({ error: 'Staged file not found' });
+    } else if (msg === 'MISSING_ACCOUNT') {
+      res.status(400).json({ error: 'Account must be assigned before submitting' });
+    } else if (msg === 'INCOMPLETE_TRANSACTIONS') {
+      res.status(400).json({ error: 'All transactions must have a category and person assigned' });
+    } else {
+      console.error('Submit error:', error);
+      res.status(500).json({ error: 'Failed to submit data', message: msg });
+    }
+  }
+});
+
+router.post('/preview/:id/discard', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const db = getDb();
+
+  try {
+    const result = db.prepare('DELETE FROM FileStage WHERE FileStageId = ?').run(id);
+
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Staged file not found' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Discard error:', error);
+    res.status(500).json({ error: 'Failed to discard data', message: (error as Error).message });
+  }
+});
+
 export default router;
