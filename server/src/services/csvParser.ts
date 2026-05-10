@@ -11,7 +11,7 @@ export interface NormalizedTransaction {
   rawPerson?: string;
 }
 
-const DATE_COLUMNS = ['transaction date', 'date', 'posted date'];
+const DATE_COLUMNS = ['transaction date', 'date', 'posted date', 'posting date', 'post date'];
 const DESCRIPTION_COLUMNS = ['description', 'transaction description', 'memo', 'title'];
 const AMOUNT_COLUMNS = ['amount', 'amount (usd)', 'amount ($)', 'value'];
 const DEBIT_COLUMNS = ['debit', 'charge', 'withdrawal'];
