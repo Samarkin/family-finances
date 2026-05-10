@@ -4,7 +4,7 @@ import { CATEGORY_NAMES } from '../constants/categories.js';
 
 const router = Router();
 
-router.get('/transactions/months', (req, res, next) => {
+router.get('/transactions/months', (_req, res, next) => {
   try {
     const db = getDb();
     const rows = db
@@ -21,14 +21,16 @@ router.get('/transactions', (req, res, next) => {
     const { month, personId, offset = '0', count, sort } = req.query;
 
     if (!count) {
-      return res.status(400).json({ error: 'Count parameter is mandatory' });
+      res.status(400).json({ error: 'Count parameter is mandatory' });
+      return;
     }
 
     const countNum = parseInt(count as string, 10);
     const offsetNum = parseInt(offset as string, 10);
 
     if (isNaN(countNum) || isNaN(offsetNum)) {
-      return res.status(400).json({ error: 'Invalid count or offset' });
+      res.status(400).json({ error: 'Invalid count or offset' });
+      return;
     }
 
     const db = getDb();

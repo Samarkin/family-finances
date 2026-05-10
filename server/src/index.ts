@@ -1,6 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { getDb } from './db/connection.js';
 import uploadRouter from './routes/upload.js';
 import previewRouter from './routes/preview.js';
@@ -14,6 +17,9 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Enable JSON request parsing
 app.use(express.json());
@@ -41,6 +47,20 @@ app.get('/api/status', (_req, res) => {
     res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 });
+
+// Serve static client files
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+
+  // Handle client-side routing
+  app.get('{/*splat}', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

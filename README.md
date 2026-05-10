@@ -40,3 +40,19 @@ Requests to `/api` from the client are automatically proxied to the server.
 npm run lint
 npm run format
 ```
+
+### Production
+
+To prepare the application for production, build both the client and the server:
+
+```bash
+npm run dist
+```
+
+Once built, you can run the entire application (both the API server and the statically served frontend) with a single command:
+
+```bash
+npm start
+```
+
+The application will be available at `http://localhost:3001` (or your configured `PORT`).
