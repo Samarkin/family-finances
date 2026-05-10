@@ -87,7 +87,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Add a dropdown to filter by month or "All Time" and support deep linking by month via URL parameters.
     - Display summary headers: total transactions, total spent, and total earned.
     - Add server integration tests and client component tests.
-- [ ] **3.2 Files Management**: `GET /files` and `POST /files/<id>/delete`.
+- [x] **3.2 Files Management**: `GET /files` and `POST /files/<id>/delete`.
   - **Requirements**:
     - Implement `GET /api/files` returning all non-staged files with account names and transaction date ranges.
     - Implement `GET /api/preview-files` following the same format, but returning files from `FileStage`.
