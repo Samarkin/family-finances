@@ -1,16 +1,16 @@
 export const CATEGORIES = {
   salary: { name: 'Salary', color: '#7f7f7f' },
   stock: { name: 'Stock', color: '#7faf7f' },
-  payments: { name: 'Payments', color: '#607d8b' },
+  payments: { name: 'Payments & Transfers', color: '#607d8b' },
   housing: { name: 'Housing', color: '#3366cc' },
   food: { name: 'Food & Drinks', color: '#ff3c00' },
   groceries: { name: 'Groceries', color: '#4caf50' },
   gas: { name: 'Gas & Car', color: '#dc3912' },
   utilities: { name: 'Utilities & Bills', color: '#ff9900' },
   travel: { name: 'Travel', color: '#009688' },
-  entertainment: { name: 'Entertainment', color: '#109618' },
-  shopping: { name: 'Shopping & Toys', color: '#990099' },
-  health: { name: 'Health', color: '#0099c6' },
+  entertainment: { name: 'Entertainment & Toys', color: '#109618' },
+  shopping: { name: 'Shopping & Necessities', color: '#990099' },
+  health: { name: 'Health & Beauty', color: '#0099c6' },
 } as const;
 
 export type CategoryId = keyof typeof CATEGORIES;
@@ -20,6 +20,7 @@ export const CATEGORY_NAMES: Record<CategoryId, string> = Object.fromEntries(
 ) as Record<CategoryId, string>;
 
 export const RAW_CATEGORY_MAP: Record<string, CategoryId> = {
+  ACCT_XFER: 'payments',
   Airfare: 'travel',
   Airlines: 'travel',
   'Bills & Utilities': 'utilities',
