@@ -99,8 +99,35 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 ## Phase 4: Spending Analytics
 
 - [ ] **4.1 Summary Aggregation API**: `GET /summary` for monthly totals and category data.
+  - **Requirements**:
+    - Implement `GET /api/summary` to return aggregated transaction data grouped by month and category.
+    - Data should cover the last 12 months with activity.
+    - The response must include a list of categories (id, name, color) to define the order of the spending arrays.
+    - For each month, provide:
+      - An array of total amounts per category (ordered by the categories list).
+      - Total spent (sum of positive amounts).
+      - Total earned (sum of negative amounts).
+      - Transaction count.
+    - Calculate and return global totals (all-time spent, earned, transaction count).
+    - Add integration tests verifying the aggregation logic across various transaction dates and amounts.
 - [ ] **4.2 Dashboard Charts**: Implement Summary page with Recharts (Pie and Stacked Area).
+  - **Requirements**:
+    - Create `SummaryPage.tsx` and integrate it into the main layout.
+    - Use `recharts` to implement:
+      - A Pie chart for total spendings (all time).
+      - A Pie chart for last month's spendings.
+      - A Stacked Area chart for the 12-month spending trend.
+    - Ensure all charts share the same color scheme per category.
+    - Display summary cards/headers showing total spent, total earned, and transaction count for the selected period (or all time).
+    - Implement click handlers on charts to navigate to `TransactionsPage` with appropriate month filters.
+    - Handle the "no data" state with a friendly placeholder or message.
 - [ ] **4.3 Legend & Interaction**: Global category filter via legend.
+  - **Requirements**:
+    - Implement a custom legend component that controls the visibility of categories across all three charts.
+    - Clicking a category in the legend should toggle its visibility.
+    - Filtered-out categories should be hidden from the charts, but summary totals (spent/earned/count) should **not** be recalculated.
+    - Ensure the legend state is consistent across the page's lifecycle.
+    - Add unit and component tests for the filtering logic and interaction.
 
 ## Phase 5: Refinement & Automation
 
