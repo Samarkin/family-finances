@@ -98,7 +98,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 
 ## Phase 4: Spending Analytics
 
-- [ ] **4.1 Summary Aggregation API**: `GET /summary` for monthly totals and category data.
+- [x] **4.1 Summary Aggregation API**: `GET /summary` for monthly totals and category data.
   - **Requirements**:
     - Implement `GET /api/summary` to return aggregated transaction data grouped by month and category.
     - Data should cover the last 12 months with activity.

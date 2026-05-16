@@ -8,6 +8,7 @@ import accountsRouter from './routes/accounts.js';
 import personsRouter from './routes/persons.js';
 import transactionsRouter from './routes/transactions.js';
 import filesRouter from './routes/files.js';
+import summaryRouter from './routes/summary.js';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/api', accountsRouter);
 app.use('/api', personsRouter);
 app.use('/api', transactionsRouter);
 app.use('/api', filesRouter);
+app.use('/api', summaryRouter);
 
 // GET /api/status endpoint
 app.get('/api/status', (_req, res) => {
