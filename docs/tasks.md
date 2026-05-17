@@ -110,7 +110,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
       - Transaction count.
     - Calculate and return global totals (all-time spent, earned, transaction count).
     - Add integration tests verifying the aggregation logic across various transaction dates and amounts.
-- [ ] **4.2 Dashboard Charts**: Implement Summary page with Recharts (Pie and Stacked Area).
+- [x] **4.2 Dashboard Charts**: Implement Summary page with Recharts (Pie and Stacked Area).
   - **Requirements**:
     - Create `SummaryPage.tsx` and integrate it into the main layout.
     - Use `recharts` to implement:

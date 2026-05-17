@@ -22,11 +22,17 @@ router.get('/summary', (req, res, next) => {
       SELECT 
         SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as totalSpent,
         SUM(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE 0 END) as totalEarned,
-        COUNT(*) as transactionCount
+        COUNT(*) as transactionCount,
+        COUNT(DISTINCT Month) as totalMonths
       FROM "Transaction"
     `,
       )
-      .get() as { totalSpent: number | null; totalEarned: number | null; transactionCount: number };
+      .get() as {
+      totalSpent: number | null;
+      totalEarned: number | null;
+      transactionCount: number;
+      totalMonths: number;
+    };
 
     const allTimeCategoryBreakdown = db
       .prepare(
@@ -75,6 +81,7 @@ router.get('/summary', (req, res, next) => {
         totalSpent: globalTotals.totalSpent || 0,
         totalEarned: globalTotals.totalEarned || 0,
         transactionCount: globalTotals.transactionCount,
+        totalMonths: globalTotals.totalMonths || 0,
       });
     }
 
@@ -123,6 +130,7 @@ router.get('/summary', (req, res, next) => {
       totalSpent: globalTotals.totalSpent || 0,
       totalEarned: globalTotals.totalEarned || 0,
       transactionCount: globalTotals.transactionCount,
+      totalMonths: globalTotals.totalMonths || 0,
     });
   } catch (error) {
     next(error);
