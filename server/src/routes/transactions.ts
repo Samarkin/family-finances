@@ -78,8 +78,9 @@ router.get('/transactions', (req, res, next) => {
     const summaryQuery = `
       SELECT 
         COUNT(*) as totalCount,
-        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as totalSpent,
-        SUM(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE 0 END) as totalEarned
+        SUM(CASE WHEN Amount > 0 AND CategoryId != 'payments' THEN Amount ELSE 0 END) as totalSpent,
+        SUM(CASE WHEN Amount < 0 AND CategoryId != 'payments' THEN ABS(Amount) ELSE 0 END) as totalEarned,
+        SUM(CASE WHEN CategoryId = 'payments' THEN Amount ELSE 0 END) as netPayments
       FROM "Transaction" t
       ${whereClause}
     `;
@@ -88,6 +89,7 @@ router.get('/transactions', (req, res, next) => {
       totalCount: number;
       totalSpent: number | null;
       totalEarned: number | null;
+      netPayments: number | null;
     };
 
     const dataQuery = `
@@ -128,6 +130,7 @@ router.get('/transactions', (req, res, next) => {
       totalCount: summary.totalCount,
       totalSpent: summary.totalSpent || 0,
       totalEarned: summary.totalEarned || 0,
+      netPayments: summary.netPayments || 0,
       persons,
       accounts,
       categories: CATEGORY_NAMES,

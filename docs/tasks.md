@@ -124,7 +124,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 
 ## Phase 5: Refinement & Automation
 
-- [ ] **5.1 Exclude Payments**: Exclude payments and transfers from all graphs, since the money is neither earned nor spent.
+- [x] **5.1 Exclude Payments**: Exclude payments and transfers from all graphs, since the money is neither earned nor spent.
   - **Requirements**:
     - Update the `GET /api/summary` endpoint to filter out transactions classified as `payments`. Exclude them from `totalSpent` and `totalEarned` calculations, but keep them in `transactionCount`.
     - Update the `GET /api/transactions` endpoint to exclude payment transactions from `totalSpent` and `totalEarned`, but keep them in `totalCount` and do not exclude the actual payment transactions from the list.

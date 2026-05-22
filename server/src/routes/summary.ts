@@ -8,20 +8,22 @@ router.get('/summary', (req, res, next) => {
   try {
     const db = getDb();
 
-    // 1. Define categories for the response
-    const categoriesList = Object.entries(CATEGORIES).map(([id, cat]) => ({
-      id: id as CategoryId,
-      name: cat.name,
-      color: cat.color,
-    }));
+    // 1. Define categories for the response (excluding payments)
+    const categoriesList = Object.entries(CATEGORIES)
+      .filter(([id]) => id !== 'payments')
+      .map(([id, cat]) => ({
+        id: id as CategoryId,
+        name: cat.name,
+        color: cat.color,
+      }));
 
-    // 2. Get global totals
+    // 2. Get global totals (excluding payments)
     const globalTotals = db
       .prepare(
         `
       SELECT 
-        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as totalSpent,
-        SUM(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE 0 END) as totalEarned,
+        SUM(CASE WHEN Amount > 0 AND CategoryId != 'payments' THEN Amount ELSE 0 END) as totalSpent,
+        SUM(CASE WHEN Amount < 0 AND CategoryId != 'payments' THEN ABS(Amount) ELSE 0 END) as totalEarned,
         COUNT(*) as transactionCount,
         COUNT(DISTINCT Month) as totalMonths
       FROM "Transaction"
@@ -41,6 +43,7 @@ router.get('/summary', (req, res, next) => {
         CategoryId,
         SUM(Amount) as totalAmount
       FROM "Transaction"
+      WHERE CategoryId != 'payments'
       GROUP BY CategoryId
     `,
       )
@@ -51,14 +54,14 @@ router.get('/summary', (req, res, next) => {
       return breakdown ? breakdown.totalAmount : 0;
     });
 
-    // 3. Get monthly aggregates for the last 12 active months
+    // 3. Get monthly aggregates for the last 12 active months (excluding payments from totals)
     const monthlyStats = db
       .prepare(
         `
       SELECT 
         Month,
-        SUM(CASE WHEN Amount > 0 THEN Amount ELSE 0 END) as totalSpent,
-        SUM(CASE WHEN Amount < 0 THEN ABS(Amount) ELSE 0 END) as totalEarned,
+        SUM(CASE WHEN Amount > 0 AND CategoryId != 'payments' THEN Amount ELSE 0 END) as totalSpent,
+        SUM(CASE WHEN Amount < 0 AND CategoryId != 'payments' THEN ABS(Amount) ELSE 0 END) as totalEarned,
         COUNT(*) as transactionCount
       FROM "Transaction"
       GROUP BY Month
@@ -98,7 +101,7 @@ router.get('/summary', (req, res, next) => {
         CategoryId,
         SUM(Amount) as totalAmount
       FROM "Transaction"
-      WHERE Month IN (${monthList.map(() => '?').join(',')})
+      WHERE Month IN (${monthList.map(() => '?').join(',')}) AND CategoryId != 'payments'
       GROUP BY Month, CategoryId
     `,
       )

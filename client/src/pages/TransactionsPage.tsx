@@ -40,6 +40,7 @@ export default function TransactionsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [netPayments, setNetPayments] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
@@ -79,6 +80,7 @@ export default function TransactionsPage() {
       setTotalCount(json.totalCount || 0);
       setTotalSpent(json.totalSpent || 0);
       setTotalEarned(json.totalEarned || 0);
+      setNetPayments(json.netPayments || 0);
       setPersons(json.persons || []);
       setAccounts(json.accounts || []);
       setCategories(json.categories || []);
@@ -285,7 +287,8 @@ export default function TransactionsPage() {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Total: {totalCount} | Spent: {currencyFormatter.format(totalSpent)} | Earned:{' '}
-            {currencyFormatter.format(totalEarned)}
+            {currencyFormatter.format(totalEarned)} | Payments:{' '}
+            {currencyFormatter.format(netPayments)}
           </Typography>
         </Box>
 

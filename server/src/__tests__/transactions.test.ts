@@ -23,6 +23,7 @@ describe('GET /api/transactions', () => {
     insertTx.run('hash1', '2024-05', 1, 'Groceries', 'food', 50, 1, 1, 2);
     insertTx.run('hash2', '2024-05', 2, 'Salary', 'salary', -1000, 1, 1, 1); // PersonId 1 is Family (seeded)
     insertTx.run('hash3', '2024-06', 15, 'Gas', 'transport', 30, 1, 1, 2);
+    insertTx.run('hash4', '2024-06', 16, 'CC Payment', 'payments', 200, 1, 1, 1);
   });
 
   afterAll(() => {
@@ -41,20 +42,21 @@ describe('GET /api/transactions', () => {
     expect(response.body.months).toEqual(['2024-06', '2024-05']);
   });
 
-  it('should return transactions with pagination', async () => {
-    const response = await request(app).get('/api/transactions?count=2&offset=0');
+  it('should return transactions with pagination and exclude payments from totals', async () => {
+    const response = await request(app).get('/api/transactions?count=10&offset=0');
     expect(response.status).toBe(200);
 
-    expect(response.body.totalCount).toBe(3);
-    expect(response.body.totalSpent).toBe(80);
+    expect(response.body.totalCount).toBe(4);
+    expect(response.body.totalSpent).toBe(80); // 50 + 30, excluding 200
     expect(response.body.totalEarned).toBe(1000);
-    expect(response.body.data.length).toBe(2);
+    expect(response.body.netPayments).toBe(200);
+    expect(response.body.data.length).toBe(4);
 
     // Ordered by month desc, day desc
-    expect(response.body.data[0].id).toBe('hash3');
-    expect(response.body.data[0].date).toBe('2024-06-15');
-    expect(response.body.data[1].id).toBe('hash2');
-    expect(response.body.data[1].date).toBe('2024-05-02');
+    expect(response.body.data[0].id).toBe('hash4');
+    expect(response.body.data[1].id).toBe('hash3');
+    expect(response.body.data[2].id).toBe('hash2');
+    expect(response.body.data[3].id).toBe('hash1');
 
     expect(Object.keys(response.body.persons).length).toBeGreaterThan(0);
     expect(Object.keys(response.body.accounts).length).toBe(1);
@@ -94,6 +96,7 @@ describe('GET /api/transactions', () => {
     const response = await request(app).get('/api/transactions?count=10&sort=personId:asc');
     expect(response.status).toBe(200);
     expect(response.body.persons[response.body.data[0].personId]).toBe('Family');
-    expect(response.body.persons[response.body.data[1].personId]).toBe('John Doe');
+    expect(response.body.persons[response.body.data[1].personId]).toBe('Family');
+    expect(response.body.persons[response.body.data[2].personId]).toBe('John Doe');
   });
 });

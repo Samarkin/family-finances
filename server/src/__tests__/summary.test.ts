@@ -26,6 +26,7 @@ describe('GET /api/summary', () => {
     insertTx.run('h1', '2024-01', 1, 'Salary', 'salary', -50, 1, 1, 1);
     insertTx.run('h2', '2024-01', 2, 'Lunch', 'food', 60, 1, 1, 1);
     insertTx.run('h3', '2024-01', 3, 'Gas', 'gas', 40, 1, 1, 1);
+    insertTx.run('h6', '2024-01', 4, 'CC Payment', 'payments', 100, 1, 1, 1); // Should be excluded from totals and category list
 
     // Month 2: 2024-02 - Total Spent: 200 (food: 200), Total Earned: 0
     insertTx.run('h4', '2024-02', 1, 'Dinner', 'food', 200, 1, 1, 1);
@@ -38,7 +39,7 @@ describe('GET /api/summary', () => {
     closeDb();
   });
 
-  it('should return aggregated summary data', async () => {
+  it('should return aggregated summary data and exclude payments', async () => {
     const response = await request(app).get('/api/summary');
 
     expect(response.status).toBe(200);
@@ -53,12 +54,21 @@ describe('GET /api/summary', () => {
     const foodIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'food');
     const gasIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'gas');
     const salaryIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'salary');
+    const paymentsIdx = response.body.categories.findIndex(
+      (c: { id: string }) => c.id === 'payments',
+    );
+
+    expect(foodIdx).not.toBe(-1);
+    expect(gasIdx).not.toBe(-1);
+    expect(salaryIdx).not.toBe(-1);
+    expect(paymentsIdx).toBe(-1); // Excluded from categories list
+
     expect(response.body.allTimeSpendings[foodIdx]).toBe(260);
     expect(response.body.allTimeSpendings[gasIdx]).toBe(40);
     expect(response.body.allTimeSpendings[salaryIdx]).toBe(-1050);
 
     // Verify categories
-    const categoryIds = Object.keys(CATEGORIES);
+    const categoryIds = Object.keys(CATEGORIES).filter((id) => id !== 'payments');
     expect(response.body.categories.length).toBe(categoryIds.length);
     expect(response.body.categories[0]).toHaveProperty('id');
     expect(response.body.categories[0]).toHaveProperty('name');
@@ -72,12 +82,13 @@ describe('GET /api/summary', () => {
     expect(jan).toBeDefined();
     expect(jan.totalSpent).toBe(100);
     expect(jan.totalEarned).toBe(50);
-    expect(jan.transactionCount).toBe(3);
+    expect(jan.transactionCount).toBe(4); // Includes payment
 
     // Verify spendings array order matches categories
     expect(jan.spendings[foodIdx]).toBe(60);
     expect(jan.spendings[gasIdx]).toBe(40);
     expect(jan.spendings[salaryIdx]).toBe(-50);
+    expect(jan.spendings.length).toBe(categoryIds.length);
 
     // Check 2024-02
     const feb = response.body.data.find((d: { month: string }) => d.month === '2024-02');
@@ -89,7 +100,7 @@ describe('GET /api/summary', () => {
     // Global totals
     expect(response.body.totalSpent).toBe(300);
     expect(response.body.totalEarned).toBe(1050);
-    expect(response.body.transactionCount).toBe(5);
+    expect(response.body.transactionCount).toBe(6);
   });
 
   it('should handle no data gracefully', async () => {

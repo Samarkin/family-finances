@@ -23,6 +23,7 @@ const mockTransactionsData = {
   totalCount: 1,
   totalSpent: -50.0,
   totalEarned: 0,
+  netPayments: 100.0,
   persons: { 1: 'Alice' },
   accounts: { 1: 'Checking' },
   categories: { 'cat-1': 'Food' },
@@ -66,6 +67,7 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument();
     expect(screen.getByText('Checking')).toBeInTheDocument();
     expect(screen.getByText('-$50.00')).toBeInTheDocument();
+    expect(screen.getByText(/Payments: \$100\.00/)).toBeInTheDocument();
   });
 
   it('handles file upload via click and navigates', async () => {
