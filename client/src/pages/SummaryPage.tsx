@@ -151,17 +151,39 @@ export default function SummaryPage() {
       .filter((item) => item.value > 0);
   }, [summaryData]);
 
-  const pieLastMonthData = useMemo(() => {
-    if (!summaryData || summaryData.data.length === 0) return [];
-    const lastMonth = summaryData.data[summaryData.data.length - 1];
-    return summaryData.categories
-      .map((cat, index) => ({
-        name: cat.name,
-        value: lastMonth.spendings[index],
-        color: cat.color,
-        id: cat.id,
-      }))
+  const averages = useMemo(() => {
+    if (!summaryData || summaryData.data.length === 0) return null;
+    const numMonths = summaryData.data.length;
+    const totalSpent = summaryData.data.reduce((sum, month) => sum + month.totalSpent, 0);
+    const totalEarned = summaryData.data.reduce((sum, month) => sum + month.totalEarned, 0);
+    const totalTransactions = summaryData.data.reduce(
+      (sum, month) => sum + month.transactionCount,
+      0,
+    );
+
+    const categoryAverages = summaryData.categories
+      .map((cat, index) => {
+        const totalForCategory = summaryData.data.reduce(
+          (sum, month) => sum + month.spendings[index],
+          0,
+        );
+        return {
+          name: cat.name,
+          value: totalForCategory / numMonths,
+          color: cat.color,
+          id: cat.id,
+        };
+      })
       .filter((item) => item.value > 0);
+
+    return {
+      spent: totalSpent / numMonths,
+      earned: totalEarned / numMonths,
+      transactions: totalTransactions / numMonths,
+      startMonth: summaryData.data[0].month,
+      endMonth: summaryData.data[summaryData.data.length - 1].month,
+      categoryAverages,
+    };
   }, [summaryData]);
 
   const areaChartData = useMemo(() => {
@@ -204,8 +226,6 @@ export default function SummaryPage() {
     );
   }
 
-  const lastMonth = summaryData.data[summaryData.data.length - 1];
-
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
@@ -228,20 +248,21 @@ export default function SummaryPage() {
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SummaryPieChart
-            title={`Last Month Spendings (${formatMonthShort(lastMonth.month)})`}
-            data={pieLastMonthData}
-            onPieClick={() => navigate(`/transactions?month=${lastMonth.month}`)}
-            footer={
-              <>
-                Total: {lastMonth.transactionCount} transactions | Spent:{' '}
-                {formatCurrency(lastMonth.totalSpent)} | Earned:{' '}
-                {formatCurrency(lastMonth.totalEarned)}
-              </>
-            }
-          />
-        </Grid>
+        {averages && (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <SummaryPieChart
+              title={`Average Spendings (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`}
+              data={averages.categoryAverages}
+              onPieClick={() => navigate('/transactions')}
+              footer={
+                <>
+                  Avg: {averages.transactions.toFixed(1)} transactions | Spent:{' '}
+                  {formatCurrency(averages.spent)} | Earned: {formatCurrency(averages.earned)}
+                </>
+              }
+            />
+          </Grid>
+        )}
 
         <Grid size={{ xs: 12 }}>
           <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', height: 500 }}>

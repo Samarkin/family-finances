@@ -71,13 +71,16 @@ describe('SummaryPage', () => {
     });
 
     // Check summary footers
+    expect(screen.getByText(/Total: 5 transactions/)).toBeInTheDocument();
+    expect(screen.getByText(/Avg: 2\.5 transactions/)).toBeInTheDocument();
     expect(screen.getByText(/\$700\.00/)).toBeInTheDocument(); // Total Spent
-    expect(screen.getAllByText(/\$50\.00/).length).toBeGreaterThan(0); // Total Earned
-    expect(screen.getByText(/5 transactions/)).toBeInTheDocument();
+    expect(screen.getByText(/\$350\.00/)).toBeInTheDocument(); // Avg Spent
+    expect(screen.getByText(/\$50\.00/)).toBeInTheDocument(); // Total Earned
+    expect(screen.getByText(/\$25\.00/)).toBeInTheDocument(); // Avg Earned
 
     // Check chart titles
     expect(screen.getByText('Total Spendings (2 months)')).toBeInTheDocument();
-    expect(screen.getByText('Last Month Spendings (Oct 2023)')).toBeInTheDocument();
+    expect(screen.getByText('Average Spendings (Sep 2023 - Oct 2023)')).toBeInTheDocument();
     expect(screen.getByText('12-Month Spending Trend')).toBeInTheDocument();
   });
 
