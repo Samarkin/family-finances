@@ -121,16 +121,16 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Display summary cards/headers showing total spent, total earned, and transaction count for the selected period (or all time).
     - Implement click handlers on charts to navigate to `TransactionsPage` with appropriate month filters.
     - Handle the "no data" state with a friendly placeholder or message.
-- [ ] **4.3 Legend & Interaction**: Global category filter via legend.
-  - **Requirements**:
-    - Implement a custom legend component that controls the visibility of categories across all three charts.
-    - Clicking a category in the legend should toggle its visibility.
-    - Filtered-out categories should be hidden from the charts, but summary totals (spent/earned/count) should **not** be recalculated.
-    - Ensure the legend state is consistent across the page's lifecycle.
-    - Add unit and component tests for the filtering logic and interaction.
 
 ## Phase 5: Refinement & Automation
 
-- [ ] **5.1 Heuristic Guessing**: Regex-based auto-assignment of Account, Category, and Person.
-- [ ] **5.2 Exclude Payments**: Add an option to exclude payments and transfers from all views and graphs, since the money is neither earned nor spent.
-- [ ] **5.3 Account Table**: Add a UI page with the table of account-month mapping to quickly see which files were not uploaded yet.
+- [ ] **5.1 Exclude Payments**: Exclude payments and transfers from all graphs, since the money is neither earned nor spent.
+- [ ] **5.2 Account Table**: Add a UI page with the table of account-month mapping to quickly see which files were not uploaded yet.
+- [ ] **5.3 Transaction Comments**: Add a comment field for every transaction.
+- [ ] **5.4 Edit Transactions**: Add an ability to edit committed transactions (adjust person, category and comment).
+
+## Backlog
+
+- [ ] **6.1 Heuristic Guessing**: Regex-based auto-assignment of Account, Category, and Person.
+- [ ] **6.2 Transaction Split**: Add an ability to split a single transaction between two categories.
+- [ ] **6.3 Legend & Interaction**: Global category filter via legend.
