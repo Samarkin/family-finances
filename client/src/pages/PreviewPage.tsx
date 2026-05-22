@@ -86,6 +86,17 @@ export default function PreviewPage() {
 
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
 
+  const weekdayFormatter = useMemo(() => new Intl.DateTimeFormat('en-US', { weekday: 'long' }), []);
+
+  const formatDate = useCallback(
+    (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return `${weekdayFormatter.format(date)},\n${dateStr}`;
+    },
+    [weekdayFormatter],
+  );
+
   const handleSubmit = async () => {
     setSubmitError(null);
     try {
@@ -487,7 +498,7 @@ export default function PreviewPage() {
                   onChange={handleSelectAll}
                 />
               </TableCell>
-              <TableCell sx={{ width: 110 }}>
+              <TableCell sx={{ width: 140 }}>
                 <TableSortLabel
                   active={orderBy === 'date'}
                   direction={orderBy === 'date' ? order : 'asc'}
@@ -562,7 +573,7 @@ export default function PreviewPage() {
                 <TableCell padding="checkbox">
                   <Checkbox checked={selectedIds.has(tx.id)} />
                 </TableCell>
-                <TableCell>{tx.date}</TableCell>
+                <TableCell sx={{ whiteSpace: 'pre-wrap' }}>{formatDate(tx.date)}</TableCell>
                 <TableCell>{tx.description}</TableCell>
                 <TableCell align="right">{tx.amount.toFixed(2)}</TableCell>
                 <TableCell>
