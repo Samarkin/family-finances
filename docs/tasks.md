@@ -125,9 +125,34 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
 ## Phase 5: Refinement & Automation
 
 - [ ] **5.1 Exclude Payments**: Exclude payments and transfers from all graphs, since the money is neither earned nor spent.
-- [ ] **5.2 Account Table**: Add a UI page with the table of account-month mapping to quickly see which files were not uploaded yet.
+  - **Requirements**:
+    - Update the `GET /api/summary` endpoint to filter out transactions classified as `payments`. Exclude them from `totalSpent` and `totalEarned` calculations, but keep them in `transactionCount`.
+    - Update the `GET /api/transactions` endpoint to exclude payment transactions from `totalSpent` and `totalEarned`, but keep them in `totalCount` and do not exclude the actual payment transactions from the list.
+    - Add a `netPayments` field to the `GET /api/transactions` response.
+    - Update the UI on the Transactions page to display the new `netPayments` field.
+    - Add both UI component tests and server-side integration tests for these changes.
+- [ ] **5.2 Accounts Page**: Add a UI page with the table of account-month mapping to quickly see which files were not uploaded yet.
+  - **Requirements**:
+    - Use the existing `GET /api/files` endpoint to fetch files and their ranges. Assume that the date range is contiguous within a single file.
+    - Create a new UI page called `AccountsPage.tsx` featuring a matrix table (accounts as rows, months as columns).
+    - Display indicators in the table cells showing whether a file exists covering that specific account and month.
+    - Add a navigation link to this new "Accounts" page in the main layout.
+    - Add both UI component tests and server-side integration tests.
 - [ ] **5.3 Transaction Comments**: Add a comment field for every transaction.
+  - **Requirements**:
+    - Update the database schema in `server/src/db/init.ts` to add a `Comment` column to the `Transaction` table.
+    - Perform a one-time migration for the existing database (if it exists) to add the new column. Always create a backup of the database before running the migration.
+    - Update the transaction queries, data models, and types to include the `Comment` field.
+    - Update `TransactionsPage.tsx` to handle comments. Do not display the full comment in the DataGrid. Instead, display an icon that brings up a comment view/edit popover on click. Visually differentiate rows that have a comment from those that do not.
+    - Add the comment field to the Preview page (using the same icon/popover logic instead of displaying the full comment in the grid) and adjust the `POST /api/preview/:id/bulk-update` endpoint to support bulk-updating comments.
+    - Add both UI component tests and server-side integration tests.
 - [ ] **5.4 Edit Transactions**: Add an ability to edit committed transactions (adjust person, category and comment).
+  - **Requirements**:
+    - Implement a `PUT /api/transactions/:hash` endpoint to update the `PersonId`, `CategoryId`, and `Comment` for a specific transaction.
+    - Update `TransactionsPage.tsx` to use inline edit controls (via DataGrid edit mode) to modify these fields. Do not use a modal.
+    - Re-fetch data to reflect edits immediately on the UI.
+    - Immutable fields (e.g., Amount, Date) that originate from the CSV must not appear editable in the UI, and the server should simply ignore them if they are sent by the client.
+    - Add both UI component tests and server-side integration tests.
 
 ## Backlog
 
