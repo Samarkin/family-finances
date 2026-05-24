@@ -5,8 +5,9 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -218,9 +219,13 @@ export default function SummaryPage() {
     if (!summaryData) return [];
     return summaryData.data.map((monthData) => {
       const obj: Record<string, string | number> = { month: monthData.month };
+      let net = 0;
       summaryData.categories.forEach((cat, index) => {
-        obj[cat.id] = monthData.spendings[index];
+        const val = monthData.spendings[index];
+        obj[cat.id] = val;
+        net += val;
       });
+      obj.netPosition = net;
       return obj;
     });
   }, [summaryData]);
@@ -306,17 +311,34 @@ export default function SummaryPage() {
               Trend
             </Typography>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={areaChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <ComposedChart
+                data={areaChartData}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tickFormatter={formatMonthCompact} />
                 <YAxis tickFormatter={(value) => `$${value}`} />
                 <Tooltip
-                  labelFormatter={(label: unknown) =>
+                  labelFormatter={(label: React.ReactNode) =>
                     typeof label === 'string' ? formatMonthLong(label) : ''
                   }
-                  formatter={(value: unknown) =>
-                    typeof value === 'number' ? formatCurrency(value) : String(value ?? '')
-                  }
+                  formatter={(
+                    value: string | number | readonly (string | number)[] | undefined,
+                    name: string | number | undefined,
+                  ) => {
+                    if (typeof value !== 'number') return [String(value), name];
+                    const val = formatCurrency(value);
+                    if (name === 'Net Position') {
+                      const isPositive = value > 0;
+                      return [
+                        <strong key="val" style={{ color: isPositive ? 'red' : 'inherit' }}>
+                          {val}
+                        </strong>,
+                        name,
+                      ];
+                    }
+                    return [val, name];
+                  }}
                 />
                 {summaryData.categories.map((cat) => (
                   <Area
@@ -330,7 +352,15 @@ export default function SummaryPage() {
                     name={cat.name}
                   />
                 ))}
-              </AreaChart>
+                <Line
+                  type="monotone"
+                  dataKey="netPosition"
+                  stroke="#000000"
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  name="Net Position"
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           </Paper>
         </Grid>
