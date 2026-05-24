@@ -45,8 +45,6 @@ describe('GET /api/summary', () => {
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('categories');
     expect(response.body).toHaveProperty('data');
-    expect(response.body).not.toHaveProperty('allTimeSpendings');
-    expect(response.body).not.toHaveProperty('transactionCount');
 
     const foodIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'food');
     const gasIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'gas');
@@ -79,7 +77,6 @@ describe('GET /api/summary', () => {
     // Check 2024-01
     const jan = response.body.data.find((d: { month: string }) => d.month === '2024-01');
     expect(jan).toBeDefined();
-    expect(jan.transactionCount).toBe(4); // Includes payment
     expect(jan.spendingCount).toBe(2);
     expect(jan.incomeCount).toBe(1);
 
@@ -91,7 +88,6 @@ describe('GET /api/summary', () => {
 
     // Check 2024-02
     const feb = response.body.data.find((d: { month: string }) => d.month === '2024-02');
-    expect(feb.transactionCount).toBe(1);
     expect(feb.spendingCount).toBe(1);
     expect(feb.incomeCount).toBe(0);
     expect(feb.spendings[foodIdx]).toBe(200);

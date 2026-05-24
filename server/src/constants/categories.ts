@@ -59,3 +59,17 @@ export const RAW_CATEGORY_MAP: Record<string, CategoryId> = {
   Utilities: 'utilities',
   'Utilities & Bills': 'utilities',
 };
+
+export const INCOME_CATEGORIES_SQL_LIST = Object.entries(CATEGORIES)
+  .filter(([, cat]) => 'isIncome' in cat && (cat as { isIncome?: boolean }).isIncome)
+  .map(([id]) => `'${id}'`)
+  .join(', ');
+
+export const SUMMARY_CATEGORIES_LIST = Object.entries(CATEGORIES)
+  .filter(([id]) => id !== 'payments')
+  .map(([id, cat]) => ({
+    id: id as CategoryId,
+    name: cat.name,
+    color: cat.color,
+    isIncome: 'isIncome' in cat ? ((cat as { isIncome?: boolean }).isIncome ?? false) : false,
+  }));

@@ -24,7 +24,6 @@ interface Category {
 interface MonthData {
   month: string;
   spendings: number[];
-  transactionCount: number;
   spendingCount: number;
   incomeCount: number;
 }
@@ -163,12 +162,10 @@ export default function SummaryPage() {
 
     let totalSpentAllMonths = 0;
     let totalEarnedAllMonths = 0;
-    let totalTransactions = 0;
     let totalSpendingTransactions = 0;
     let totalIncomeTransactions = 0;
 
     summaryData.data.forEach((month) => {
-      totalTransactions += month.transactionCount;
       totalSpendingTransactions += month.spendingCount;
       totalIncomeTransactions += month.incomeCount;
     });
@@ -197,7 +194,6 @@ export default function SummaryPage() {
     return {
       spent: totalSpentAllMonths / numMonths,
       earned: totalEarnedAllMonths / numMonths,
-      transactions: totalTransactions / numMonths,
       spendingTransactions: totalSpendingTransactions / numMonths,
       incomeTransactions: totalIncomeTransactions / numMonths,
       startMonth: summaryData.data[0].month,

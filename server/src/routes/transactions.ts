@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getDb } from '../db/connection.js';
-import { CATEGORIES, CATEGORY_NAMES } from '../constants/categories.js';
+import { CATEGORY_NAMES, INCOME_CATEGORIES_SQL_LIST } from '../constants/categories.js';
 
 const router = Router();
 
@@ -75,12 +75,9 @@ router.get('/transactions', (req, res, next) => {
       }
     }
 
-    const incomeCategories = Object.entries(CATEGORIES)
-      .filter(([, cat]) => 'isIncome' in cat && (cat as { isIncome?: boolean }).isIncome)
-      .map(([id]) => `'${id}'`)
-      .join(', ');
-
-    const incomeCondition = incomeCategories ? `CategoryId IN (${incomeCategories})` : '1=0';
+    const incomeCondition = INCOME_CATEGORIES_SQL_LIST
+      ? `CategoryId IN (${INCOME_CATEGORIES_SQL_LIST})`
+      : '1=0';
 
     const summaryQuery = `
       SELECT 

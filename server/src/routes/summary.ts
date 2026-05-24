@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getDb } from '../db/connection.js';
-import { CATEGORIES, CategoryId } from '../constants/categories.js';
+import { SUMMARY_CATEGORIES_LIST, INCOME_CATEGORIES_SQL_LIST } from '../constants/categories.js';
 
 const router = Router();
 
@@ -8,22 +8,9 @@ router.get('/summary', (req, res, next) => {
   try {
     const db = getDb();
 
-    // 1. Define categories for the response (excluding payments)
-    const categoriesList = Object.entries(CATEGORIES)
-      .filter(([id]) => id !== 'payments')
-      .map(([id, cat]) => ({
-        id: id as CategoryId,
-        name: cat.name,
-        color: cat.color,
-        isIncome: 'isIncome' in cat ? ((cat as { isIncome?: boolean }).isIncome ?? false) : false,
-      }));
-
-    const incomeCategories = Object.entries(CATEGORIES)
-      .filter(([, cat]) => 'isIncome' in cat && (cat as { isIncome?: boolean }).isIncome)
-      .map(([id]) => `'${id}'`)
-      .join(', ');
-
-    const incomeCondition = incomeCategories ? `CategoryId IN (${incomeCategories})` : '1=0';
+    const incomeCondition = INCOME_CATEGORIES_SQL_LIST
+      ? `CategoryId IN (${INCOME_CATEGORIES_SQL_LIST})`
+      : '1=0';
 
     // 2. Get monthly aggregates for the last 12 active months (excluding payments from totals)
     const monthlyStats = db
@@ -31,7 +18,6 @@ router.get('/summary', (req, res, next) => {
         `
       SELECT 
         Month,
-        COUNT(*) as transactionCount,
         SUM(CASE WHEN NOT (${incomeCondition}) AND CategoryId != 'payments' THEN 1 ELSE 0 END) as spendingCount,
         SUM(CASE WHEN ${incomeCondition} AND CategoryId != 'payments' THEN 1 ELSE 0 END) as incomeCount
       FROM "Transaction"
@@ -42,7 +28,6 @@ router.get('/summary', (req, res, next) => {
       )
       .all() as {
       Month: string;
-      transactionCount: number;
       spendingCount: number;
       incomeCount: number;
     }[];
@@ -50,7 +35,7 @@ router.get('/summary', (req, res, next) => {
     if (monthlyStats.length === 0) {
       return res.json({
         data: [],
-        categories: categoriesList,
+        categories: SUMMARY_CATEGORIES_LIST,
       });
     }
 
@@ -76,7 +61,7 @@ router.get('/summary', (req, res, next) => {
     // 5. Format data
     const data = statsReversed.map((stats) => {
       const month = stats.Month;
-      const spendings = categoriesList.map((cat) => {
+      const spendings = SUMMARY_CATEGORIES_LIST.map((cat) => {
         const breakdown = categoryBreakdown.find(
           (b) => b.Month === month && b.CategoryId === cat.id,
         );
@@ -86,7 +71,6 @@ router.get('/summary', (req, res, next) => {
       return {
         month,
         spendings,
-        transactionCount: stats.transactionCount,
         spendingCount: stats.spendingCount,
         incomeCount: stats.incomeCount,
       };
@@ -94,7 +78,7 @@ router.get('/summary', (req, res, next) => {
 
     res.json({
       data,
-      categories: categoriesList,
+      categories: SUMMARY_CATEGORIES_LIST,
     });
   } catch (error) {
     next(error);

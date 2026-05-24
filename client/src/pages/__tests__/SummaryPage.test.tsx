@@ -24,14 +24,12 @@ const mockSummaryData = {
     {
       month: '2023-09',
       spendings: [100, 200, -50],
-      transactionCount: 3,
       spendingCount: 2,
       incomeCount: 1,
     },
     {
       month: '2023-10',
       spendings: [150, 250, 0],
-      transactionCount: 2,
       spendingCount: 2,
       incomeCount: 0,
     },
