@@ -15,6 +15,7 @@ import {
   Dashboard as DashboardIcon,
   ReceiptLong as TransactionsIcon,
   Folder as FilesIcon,
+  AccountBalance as AccountsIcon,
 } from '@mui/icons-material';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 
@@ -23,6 +24,7 @@ const drawerWidth = 240;
 const menuItems = [
   { text: 'Summary', path: '/', icon: <DashboardIcon /> },
   { text: 'Transactions', path: '/transactions', icon: <TransactionsIcon /> },
+  { text: 'Accounts', path: '/accounts', icon: <AccountsIcon /> },
   { text: 'Files', path: '/files', icon: <FilesIcon /> },
 ];
 

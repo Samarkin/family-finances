@@ -131,7 +131,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Add a `netPayments` field to the `GET /api/transactions` response.
     - Update the UI on the Transactions page to display the new `netPayments` field.
     - Add both UI component tests and server-side integration tests for these changes.
-- [ ] **5.2 Accounts Page**: Add a UI page with the table of account-month mapping to quickly see which files were not uploaded yet.
+- [x] **5.2 Accounts Page**: Add a UI page with the table of account-month mapping to quickly see which files were not uploaded yet.
   - **Requirements**:
     - Use the existing `GET /api/files` endpoint to fetch files and their ranges. Assume that the date range is contiguous within a single file.
     - Create a new UI page called `AccountsPage.tsx` featuring a matrix table (accounts as rows, months as columns).
