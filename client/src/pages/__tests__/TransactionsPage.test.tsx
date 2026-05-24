@@ -26,7 +26,7 @@ const mockTransactionsData = {
   netPayments: 100.0,
   persons: { 1: 'Alice' },
   accounts: { 1: 'Checking' },
-  categories: { 'cat-1': 'Food' },
+  categories: { 'cat-1': { name: 'Food', isIncome: false } },
 };
 
 const mockMonthsData = {

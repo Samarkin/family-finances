@@ -18,24 +18,20 @@ interface Category {
   id: string;
   name: string;
   color: string;
+  isIncome?: boolean;
 }
 
 interface MonthData {
   month: string;
   spendings: number[];
-  totalSpent: number;
-  totalEarned: number;
   transactionCount: number;
+  spendingCount: number;
+  incomeCount: number;
 }
 
 interface SummaryData {
   data: MonthData[];
   categories: Category[];
-  allTimeSpendings: number[];
-  totalSpent: number;
-  totalEarned: number;
-  transactionCount: number;
-  totalMonths: number;
 }
 
 interface PieDataPoint {
@@ -72,6 +68,32 @@ const formatMonthCompact = (monthStr: string) => {
   return `${month} '${year}`;
 };
 
+const CustomTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: PieDataPoint }[];
+}) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <Box sx={{ backgroundColor: 'white', p: 1.5, border: '1px solid #ccc' }}>
+        <Typography sx={{ color: data.color, fontSize: '1.1rem', fontWeight: 500, mb: 0.5 }}>
+          {data.name}
+        </Typography>
+        <Typography variant="body2" sx={{ color: data.color }}>
+          Monthly: {formatCurrency(data.value)}
+        </Typography>
+        <Typography variant="body2" sx={{ color: data.color }}>
+          Annual: {formatCurrency(data.value * 12)}
+        </Typography>
+      </Box>
+    );
+  }
+  return null;
+};
+
 function SummaryPieChart({
   title,
   data,
@@ -103,11 +125,7 @@ function SummaryPieChart({
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip
-            formatter={(value: unknown) =>
-              typeof value === 'number' ? formatCurrency(value) : String(value ?? '')
-            }
-          />
+          <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
@@ -139,59 +157,73 @@ export default function SummaryPage() {
       });
   }, []);
 
-  const pieTotalData = useMemo(() => {
-    if (!summaryData) return [];
-    return summaryData.categories
-      .map((cat, index) => ({
-        name: cat.name,
-        value: summaryData.allTimeSpendings[index],
-        color: cat.color,
-        id: cat.id,
-      }))
-      .filter((item) => item.value > 0);
-  }, [summaryData]);
-
   const averages = useMemo(() => {
     if (!summaryData || summaryData.data.length === 0) return null;
     const numMonths = summaryData.data.length;
-    const totalSpent = summaryData.data.reduce((sum, month) => sum + month.totalSpent, 0);
-    const totalEarned = summaryData.data.reduce((sum, month) => sum + month.totalEarned, 0);
-    const totalTransactions = summaryData.data.reduce(
-      (sum, month) => sum + month.transactionCount,
-      0,
-    );
 
-    const categoryAverages = summaryData.categories
-      .map((cat, index) => {
-        const totalForCategory = summaryData.data.reduce(
-          (sum, month) => sum + month.spendings[index],
-          0,
-        );
-        return {
-          name: cat.name,
-          value: totalForCategory / numMonths,
-          color: cat.color,
-          id: cat.id,
-        };
-      })
-      .filter((item) => item.value > 0);
+    let totalSpentAllMonths = 0;
+    let totalEarnedAllMonths = 0;
+    let totalTransactions = 0;
+    let totalSpendingTransactions = 0;
+    let totalIncomeTransactions = 0;
+
+    summaryData.data.forEach((month) => {
+      totalTransactions += month.transactionCount;
+      totalSpendingTransactions += month.spendingCount;
+      totalIncomeTransactions += month.incomeCount;
+    });
+
+    const categoryAverages = summaryData.categories.map((cat, index) => {
+      const totalForCategory = summaryData.data.reduce(
+        (sum, month) => sum + month.spendings[index],
+        0,
+      );
+
+      if (cat.isIncome) {
+        totalEarnedAllMonths -= totalForCategory;
+      } else {
+        totalSpentAllMonths += totalForCategory;
+      }
+
+      return {
+        name: cat.name,
+        value: totalForCategory / numMonths,
+        color: cat.color,
+        id: cat.id,
+        isIncome: !!cat.isIncome,
+      };
+    });
 
     return {
-      spent: totalSpent / numMonths,
-      earned: totalEarned / numMonths,
+      spent: totalSpentAllMonths / numMonths,
+      earned: totalEarnedAllMonths / numMonths,
       transactions: totalTransactions / numMonths,
+      spendingTransactions: totalSpendingTransactions / numMonths,
+      incomeTransactions: totalIncomeTransactions / numMonths,
       startMonth: summaryData.data[0].month,
       endMonth: summaryData.data[summaryData.data.length - 1].month,
       categoryAverages,
     };
   }, [summaryData]);
 
+  const pieAvgSpendingsData = useMemo(() => {
+    if (!averages) return [];
+    return averages.categoryAverages.filter((item) => !item.isIncome && item.value > 0);
+  }, [averages]);
+
+  const pieAvgIncomeData = useMemo(() => {
+    if (!averages) return [];
+    return averages.categoryAverages
+      .filter((item) => item.isIncome && item.value < 0)
+      .map((item) => ({ ...item, value: -item.value }));
+  }, [averages]);
+
   const areaChartData = useMemo(() => {
     if (!summaryData) return [];
     return summaryData.data.map((monthData) => {
       const obj: Record<string, string | number> = { month: monthData.month };
       summaryData.categories.forEach((cat, index) => {
-        obj[cat.id] = Math.max(0, monthData.spendings[index]);
+        obj[cat.id] = monthData.spendings[index];
       });
       return obj;
     });
@@ -215,7 +247,7 @@ export default function SummaryPage() {
     );
   }
 
-  if (!summaryData || summaryData.transactionCount === 0) {
+  if (!summaryData || summaryData.data.length === 0) {
     return (
       <Box sx={{ m: 2 }}>
         <Typography variant="h4" gutterBottom>
@@ -229,45 +261,53 @@ export default function SummaryPage() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Summary
+        {averages
+          ? `Summary (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`
+          : 'Summary'}
       </Typography>
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <SummaryPieChart
-            title={`Total Spendings (${summaryData.totalMonths} months)`}
-            data={pieTotalData}
-            onPieClick={() => navigate('/transactions')}
-            footer={
-              <>
-                Total: {summaryData.transactionCount} transactions | Spent:{' '}
-                {formatCurrency(summaryData.totalSpent)} | Earned:{' '}
-                {formatCurrency(summaryData.totalEarned)}
-              </>
-            }
-          />
-        </Grid>
-
         {averages && (
-          <Grid size={{ xs: 12, md: 6 }}>
-            <SummaryPieChart
-              title={`Average Spendings (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`}
-              data={averages.categoryAverages}
-              onPieClick={() => navigate('/transactions')}
-              footer={
-                <>
-                  Avg: {averages.transactions.toFixed(1)} transactions | Spent:{' '}
-                  {formatCurrency(averages.spent)} | Earned: {formatCurrency(averages.earned)}
-                </>
-              }
-            />
-          </Grid>
+          <>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <SummaryPieChart
+                title="Spendings"
+                data={pieAvgSpendingsData}
+                onPieClick={() => navigate('/transactions')}
+                footer={
+                  <>
+                    Monthly: {averages.spendingTransactions.toFixed(1)} transactions |{' '}
+                    {formatCurrency(averages.spent)}
+                    <br />
+                    Annual: {(averages.spendingTransactions * 12).toFixed(0)} transactions |{' '}
+                    {formatCurrency(averages.spent * 12)}
+                  </>
+                }
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <SummaryPieChart
+                title="Income"
+                data={pieAvgIncomeData}
+                onPieClick={() => navigate('/transactions')}
+                footer={
+                  <>
+                    Monthly: {averages.incomeTransactions.toFixed(1)} transactions |{' '}
+                    {formatCurrency(averages.earned)}
+                    <br />
+                    Annual: {(averages.incomeTransactions * 12).toFixed(0)} transactions |{' '}
+                    {formatCurrency(averages.earned * 12)}
+                  </>
+                }
+              />
+            </Grid>
+          </>
         )}
 
         <Grid size={{ xs: 12 }}>
           <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', height: 500 }}>
             <Typography variant="subtitle1" gutterBottom>
-              12-Month Spending Trend
+              Trend
             </Typography>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={areaChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -287,7 +327,7 @@ export default function SummaryPage() {
                     key={cat.id}
                     type="monotone"
                     dataKey={cat.id}
-                    stackId="1"
+                    stackId={cat.isIncome ? 'income' : 'spending'}
                     stroke={cat.color}
                     fill={cat.color}
                     fillOpacity={1}

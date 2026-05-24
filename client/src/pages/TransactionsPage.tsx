@@ -36,7 +36,9 @@ export default function TransactionsPage() {
   const [data, setData] = useState<TransactionData[]>([]);
   const [persons, setPersons] = useState<Record<number, string>>({});
   const [accounts, setAccounts] = useState<Record<number, string>>({});
-  const [categories, setCategories] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<Record<string, { name: string; isIncome: boolean }>>(
+    {},
+  );
   const [totalCount, setTotalCount] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0);
@@ -206,13 +208,21 @@ export default function TransactionsPage() {
         headerName: 'Amount',
         width: 120,
         type: 'number',
-        valueFormatter: (value?: number) => (value != null ? currencyFormatter.format(value) : ''),
+        renderCell: (params) => {
+          const amount = params.value as number;
+          const categoryId = params.row.categoryId as string;
+          const category = categories[categoryId];
+          const isIncome = category?.isIncome;
+          const isAnomaly = isIncome ? amount > 0 : amount < 0;
+          const formattedAmount = currencyFormatter.format(amount);
+          return <span style={{ color: isAnomaly ? 'red' : 'inherit' }}>{formattedAmount}</span>;
+        },
       },
       {
         field: 'categoryId',
         headerName: 'Category',
         width: 130,
-        valueGetter: (value?: string) => (value ? categories[value] || value : value),
+        valueGetter: (value?: string) => (value ? categories[value]?.name || value : value),
       },
       {
         field: 'personId',

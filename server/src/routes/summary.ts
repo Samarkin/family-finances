@@ -15,54 +15,25 @@ router.get('/summary', (req, res, next) => {
         id: id as CategoryId,
         name: cat.name,
         color: cat.color,
+        isIncome: 'isIncome' in cat ? ((cat as { isIncome?: boolean }).isIncome ?? false) : false,
       }));
 
-    // 2. Get global totals (excluding payments)
-    const globalTotals = db
-      .prepare(
-        `
-      SELECT 
-        SUM(CASE WHEN Amount > 0 AND CategoryId != 'payments' THEN Amount ELSE 0 END) as totalSpent,
-        SUM(CASE WHEN Amount < 0 AND CategoryId != 'payments' THEN ABS(Amount) ELSE 0 END) as totalEarned,
-        COUNT(*) as transactionCount,
-        COUNT(DISTINCT Month) as totalMonths
-      FROM "Transaction"
-    `,
-      )
-      .get() as {
-      totalSpent: number | null;
-      totalEarned: number | null;
-      transactionCount: number;
-      totalMonths: number;
-    };
+    const incomeCategories = Object.entries(CATEGORIES)
+      .filter(([, cat]) => 'isIncome' in cat && (cat as { isIncome?: boolean }).isIncome)
+      .map(([id]) => `'${id}'`)
+      .join(', ');
 
-    const allTimeCategoryBreakdown = db
-      .prepare(
-        `
-      SELECT 
-        CategoryId,
-        SUM(Amount) as totalAmount
-      FROM "Transaction"
-      WHERE CategoryId != 'payments'
-      GROUP BY CategoryId
-    `,
-      )
-      .all() as { CategoryId: string; totalAmount: number }[];
+    const incomeCondition = incomeCategories ? `CategoryId IN (${incomeCategories})` : '1=0';
 
-    const allTimeSpendings = categoriesList.map((cat) => {
-      const breakdown = allTimeCategoryBreakdown.find((b) => b.CategoryId === cat.id);
-      return breakdown ? breakdown.totalAmount : 0;
-    });
-
-    // 3. Get monthly aggregates for the last 12 active months (excluding payments from totals)
+    // 2. Get monthly aggregates for the last 12 active months (excluding payments from totals)
     const monthlyStats = db
       .prepare(
         `
       SELECT 
         Month,
-        SUM(CASE WHEN Amount > 0 AND CategoryId != 'payments' THEN Amount ELSE 0 END) as totalSpent,
-        SUM(CASE WHEN Amount < 0 AND CategoryId != 'payments' THEN ABS(Amount) ELSE 0 END) as totalEarned,
-        COUNT(*) as transactionCount
+        COUNT(*) as transactionCount,
+        SUM(CASE WHEN NOT (${incomeCondition}) AND CategoryId != 'payments' THEN 1 ELSE 0 END) as spendingCount,
+        SUM(CASE WHEN ${incomeCondition} AND CategoryId != 'payments' THEN 1 ELSE 0 END) as incomeCount
       FROM "Transaction"
       GROUP BY Month
       ORDER BY Month DESC
@@ -71,20 +42,15 @@ router.get('/summary', (req, res, next) => {
       )
       .all() as {
       Month: string;
-      totalSpent: number;
-      totalEarned: number;
       transactionCount: number;
+      spendingCount: number;
+      incomeCount: number;
     }[];
 
     if (monthlyStats.length === 0) {
       return res.json({
         data: [],
         categories: categoriesList,
-        allTimeSpendings,
-        totalSpent: globalTotals.totalSpent || 0,
-        totalEarned: globalTotals.totalEarned || 0,
-        transactionCount: globalTotals.transactionCount,
-        totalMonths: globalTotals.totalMonths || 0,
       });
     }
 
@@ -120,20 +86,15 @@ router.get('/summary', (req, res, next) => {
       return {
         month,
         spendings,
-        totalSpent: stats.totalSpent,
-        totalEarned: stats.totalEarned,
         transactionCount: stats.transactionCount,
+        spendingCount: stats.spendingCount,
+        incomeCount: stats.incomeCount,
       };
     });
 
     res.json({
       data,
       categories: categoriesList,
-      allTimeSpendings,
-      totalSpent: globalTotals.totalSpent || 0,
-      totalEarned: globalTotals.totalEarned || 0,
-      transactionCount: globalTotals.transactionCount,
-      totalMonths: globalTotals.totalMonths || 0,
     });
   } catch (error) {
     next(error);

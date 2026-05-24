@@ -1,6 +1,6 @@
 export const CATEGORIES = {
-  salary: { name: 'Salary', color: '#7f7f7f' },
-  stock: { name: 'Stock', color: '#7faf7f' },
+  salary: { name: 'Salary', color: '#7f7f7f', isIncome: true },
+  stock: { name: 'Stock', color: '#7faf7f', isIncome: true },
   payments: { name: 'Payments & Transfers', color: '#607d8b' },
   cashback: { name: 'Cashback & Settlements', color: '#ffc107' },
   housing: { name: 'Housing', color: '#3366cc' },
@@ -17,9 +17,16 @@ export const CATEGORIES = {
 
 export type CategoryId = keyof typeof CATEGORIES;
 
-export const CATEGORY_NAMES: Record<CategoryId, string> = Object.fromEntries(
-  Object.entries(CATEGORIES).map(([id, cat]) => [id, cat.name]),
-) as Record<CategoryId, string>;
+export const CATEGORY_NAMES: Record<CategoryId, { name: string; isIncome: boolean }> =
+  Object.fromEntries(
+    Object.entries(CATEGORIES).map(([id, cat]) => [
+      id,
+      {
+        name: cat.name,
+        isIncome: 'isIncome' in cat ? ((cat as { isIncome?: boolean }).isIncome ?? false) : false,
+      },
+    ]),
+  ) as Record<CategoryId, { name: string; isIncome: boolean }>;
 
 export const RAW_CATEGORY_MAP: Record<string, CategoryId> = {
   ACCT_XFER: 'payments',

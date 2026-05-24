@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getDb } from '../db/connection.js';
-import { CATEGORY_NAMES } from '../constants/categories.js';
+import { CATEGORIES, CATEGORY_NAMES } from '../constants/categories.js';
 
 const router = Router();
 
@@ -75,11 +75,18 @@ router.get('/transactions', (req, res, next) => {
       }
     }
 
+    const incomeCategories = Object.entries(CATEGORIES)
+      .filter(([, cat]) => 'isIncome' in cat && (cat as { isIncome?: boolean }).isIncome)
+      .map(([id]) => `'${id}'`)
+      .join(', ');
+
+    const incomeCondition = incomeCategories ? `CategoryId IN (${incomeCategories})` : '1=0';
+
     const summaryQuery = `
       SELECT 
         COUNT(*) as totalCount,
-        SUM(CASE WHEN Amount > 0 AND CategoryId != 'payments' THEN Amount ELSE 0 END) as totalSpent,
-        SUM(CASE WHEN Amount < 0 AND CategoryId != 'payments' THEN ABS(Amount) ELSE 0 END) as totalEarned,
+        SUM(CASE WHEN NOT (${incomeCondition}) AND CategoryId != 'payments' THEN Amount ELSE 0 END) as totalSpent,
+        SUM(CASE WHEN ${incomeCondition} AND CategoryId != 'payments' THEN -Amount ELSE 0 END) as totalEarned,
         SUM(CASE WHEN CategoryId = 'payments' THEN Amount ELSE 0 END) as netPayments
       FROM "Transaction" t
       ${whereClause}

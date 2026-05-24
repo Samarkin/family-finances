@@ -43,8 +43,8 @@ const mockData = {
   accountId: null,
   sign: false,
   categories: {
-    food: 'Food & Drinks',
-    groceries: 'Groceries',
+    food: { name: 'Food & Drinks', isIncome: false },
+    groceries: { name: 'Groceries', isIncome: false },
   },
   persons: {
     1: 'Family',

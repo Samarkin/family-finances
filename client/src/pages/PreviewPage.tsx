@@ -51,7 +51,7 @@ interface PreviewData {
   duplicateCount: number;
   accountId: number | null;
   sign: boolean;
-  categories: Record<string, string>;
+  categories: Record<string, { name: string; isIncome: boolean }>;
   persons: Record<number, string>;
 }
 
@@ -352,8 +352,8 @@ export default function PreviewPage() {
         aVal = a.personId ? data.persons[a.personId] || '' : '';
         bVal = b.personId ? data.persons[b.personId] || '' : '';
       } else if (orderBy === 'categoryId') {
-        aVal = a.categoryId ? data.categories[a.categoryId] || '' : '';
-        bVal = b.categoryId ? data.categories[b.categoryId] || '' : '';
+        aVal = a.categoryId ? data.categories[a.categoryId]?.name || '' : '';
+        bVal = b.categoryId ? data.categories[b.categoryId]?.name || '' : '';
       }
 
       // Fallback
@@ -575,7 +575,18 @@ export default function PreviewPage() {
                 </TableCell>
                 <TableCell sx={{ whiteSpace: 'pre-wrap' }}>{formatDate(tx.date)}</TableCell>
                 <TableCell>{tx.description}</TableCell>
-                <TableCell align="right">{tx.amount.toFixed(2)}</TableCell>
+                <TableCell align="right">
+                  {(() => {
+                    const category = tx.categoryId ? data.categories[tx.categoryId] : undefined;
+                    const isIncome = category?.isIncome;
+                    const isAnomaly = isIncome ? tx.amount > 0 : tx.amount < 0;
+                    return (
+                      <span style={{ color: isAnomaly ? 'red' : 'inherit' }}>
+                        {tx.amount.toFixed(2)}
+                      </span>
+                    );
+                  })()}
+                </TableCell>
                 <TableCell>
                   <FormControl size="small" fullWidth sx={{ mt: 0.5 }}>
                     <Select
@@ -625,9 +636,9 @@ export default function PreviewPage() {
                       <MenuItem value="" disabled sx={{ fontSize: '0.875rem' }}>
                         <em>Select...</em>
                       </MenuItem>
-                      {Object.entries(data.categories).map(([id, name]) => (
+                      {Object.entries(data.categories).map(([id, cat]) => (
                         <MenuItem key={id} value={id} sx={{ fontSize: '0.875rem' }}>
-                          {name}
+                          {cat.name}
                         </MenuItem>
                       ))}
                     </Select>

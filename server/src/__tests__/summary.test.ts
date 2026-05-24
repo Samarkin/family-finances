@@ -45,12 +45,9 @@ describe('GET /api/summary', () => {
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('categories');
     expect(response.body).toHaveProperty('data');
-    expect(response.body).toHaveProperty('allTimeSpendings');
-    expect(response.body).toHaveProperty('totalSpent');
-    expect(response.body).toHaveProperty('totalEarned');
-    expect(response.body).toHaveProperty('transactionCount');
+    expect(response.body).not.toHaveProperty('allTimeSpendings');
+    expect(response.body).not.toHaveProperty('transactionCount');
 
-    // Verify allTimeSpendings
     const foodIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'food');
     const gasIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'gas');
     const salaryIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'salary');
@@ -63,16 +60,18 @@ describe('GET /api/summary', () => {
     expect(salaryIdx).not.toBe(-1);
     expect(paymentsIdx).toBe(-1); // Excluded from categories list
 
-    expect(response.body.allTimeSpendings[foodIdx]).toBe(260);
-    expect(response.body.allTimeSpendings[gasIdx]).toBe(40);
-    expect(response.body.allTimeSpendings[salaryIdx]).toBe(-1050);
-
     // Verify categories
     const categoryIds = Object.keys(CATEGORIES).filter((id) => id !== 'payments');
     expect(response.body.categories.length).toBe(categoryIds.length);
     expect(response.body.categories[0]).toHaveProperty('id');
     expect(response.body.categories[0]).toHaveProperty('name');
     expect(response.body.categories[0]).toHaveProperty('color');
+    expect(response.body.categories[0]).toHaveProperty('isIncome');
+
+    const salaryCat = response.body.categories.find((c: { id: string }) => c.id === 'salary');
+    expect(salaryCat.isIncome).toBe(true);
+    const foodCat = response.body.categories.find((c: { id: string }) => c.id === 'food');
+    expect(foodCat.isIncome).toBe(false);
 
     // Verify data
     expect(response.body.data.length).toBe(3);
@@ -80,9 +79,9 @@ describe('GET /api/summary', () => {
     // Check 2024-01
     const jan = response.body.data.find((d: { month: string }) => d.month === '2024-01');
     expect(jan).toBeDefined();
-    expect(jan.totalSpent).toBe(100);
-    expect(jan.totalEarned).toBe(50);
     expect(jan.transactionCount).toBe(4); // Includes payment
+    expect(jan.spendingCount).toBe(2);
+    expect(jan.incomeCount).toBe(1);
 
     // Verify spendings array order matches categories
     expect(jan.spendings[foodIdx]).toBe(60);
@@ -92,15 +91,10 @@ describe('GET /api/summary', () => {
 
     // Check 2024-02
     const feb = response.body.data.find((d: { month: string }) => d.month === '2024-02');
-    expect(feb.totalSpent).toBe(200);
-    expect(feb.totalEarned).toBe(0);
     expect(feb.transactionCount).toBe(1);
+    expect(feb.spendingCount).toBe(1);
+    expect(feb.incomeCount).toBe(0);
     expect(feb.spendings[foodIdx]).toBe(200);
-
-    // Global totals
-    expect(response.body.totalSpent).toBe(300);
-    expect(response.body.totalEarned).toBe(1050);
-    expect(response.body.transactionCount).toBe(6);
   });
 
   it('should handle no data gracefully', async () => {
@@ -110,8 +104,5 @@ describe('GET /api/summary', () => {
     const response = await request(app).get('/api/summary');
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual([]);
-    expect(response.body.totalSpent).toBe(0);
-    expect(response.body.totalEarned).toBe(0);
-    expect(response.body.transactionCount).toBe(0);
   });
 });

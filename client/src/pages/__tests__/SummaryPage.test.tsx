@@ -23,28 +23,24 @@ const mockSummaryData = {
   data: [
     {
       month: '2023-09',
-      spendings: [100, 200],
-      totalSpent: 300,
-      totalEarned: 0,
-      transactionCount: 2,
+      spendings: [100, 200, -50],
+      transactionCount: 3,
+      spendingCount: 2,
+      incomeCount: 1,
     },
     {
       month: '2023-10',
-      spendings: [150, 250],
-      totalSpent: 400,
-      totalEarned: 50,
-      transactionCount: 3,
+      spendings: [150, 250, 0],
+      transactionCount: 2,
+      spendingCount: 2,
+      incomeCount: 0,
     },
   ],
   categories: [
     { id: 'cat-1', name: 'Food', color: '#ff0000' },
     { id: 'cat-2', name: 'Rent', color: '#00ff00' },
+    { id: 'cat-3', name: 'Salary', color: '#0000ff', isIncome: true },
   ],
-  allTimeSpendings: [250, 450],
-  totalSpent: 700,
-  totalEarned: 50,
-  transactionCount: 5,
-  totalMonths: 2,
 };
 
 describe('SummaryPage', () => {
@@ -67,21 +63,20 @@ describe('SummaryPage', () => {
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText('Summary')).toBeInTheDocument();
+      expect(screen.getByText('Summary (Sep 2023 - Oct 2023)')).toBeInTheDocument();
     });
 
     // Check summary footers
-    expect(screen.getByText(/Total: 5 transactions/)).toBeInTheDocument();
-    expect(screen.getByText(/Avg: 2\.5 transactions/)).toBeInTheDocument();
-    expect(screen.getByText(/\$700\.00/)).toBeInTheDocument(); // Total Spent
-    expect(screen.getByText(/\$350\.00/)).toBeInTheDocument(); // Avg Spent
-    expect(screen.getByText(/\$50\.00/)).toBeInTheDocument(); // Total Earned
-    expect(screen.getByText(/\$25\.00/)).toBeInTheDocument(); // Avg Earned
+    expect(screen.getByText(/Monthly: 2\.0 transactions \| \$350\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/Annual: 24 transactions \| \$4,200\.00/)).toBeInTheDocument();
+
+    expect(screen.getByText(/Monthly: 0\.5 transactions \| \$25\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/Annual: 6 transactions \| \$300\.00/)).toBeInTheDocument();
 
     // Check chart titles
-    expect(screen.getByText('Total Spendings (2 months)')).toBeInTheDocument();
-    expect(screen.getByText('Average Spendings (Sep 2023 - Oct 2023)')).toBeInTheDocument();
-    expect(screen.getByText('12-Month Spending Trend')).toBeInTheDocument();
+    expect(screen.getByText('Spendings')).toBeInTheDocument();
+    expect(screen.getByText('Income')).toBeInTheDocument();
+    expect(screen.getByText('Trend')).toBeInTheDocument();
   });
 
   it('handles empty data state', async () => {
@@ -90,11 +85,6 @@ describe('SummaryPage', () => {
       json: async () => ({
         data: [],
         categories: [],
-        allTimeSpendings: [],
-        totalSpent: 0,
-        totalEarned: 0,
-        transactionCount: 0,
-        totalMonths: 0,
       }),
     } as Response);
 
