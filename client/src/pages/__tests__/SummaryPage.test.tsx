@@ -1,5 +1,5 @@
 import { expect, describe, it, beforeEach, jest } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/jest-globals';
 import SummaryPage from '../SummaryPage';
 import { MemoryRouter } from 'react-router-dom';
@@ -39,6 +39,7 @@ const mockSummaryData = {
     { id: 'cat-2', name: 'Rent', color: '#00ff00' },
     { id: 'cat-3', name: 'Salary', color: '#0000ff', isIncome: true },
   ],
+  hasPrev: true,
 };
 
 describe('SummaryPage', () => {
@@ -75,6 +76,49 @@ describe('SummaryPage', () => {
     expect(screen.getByText('Spendings')).toBeInTheDocument();
     expect(screen.getByText('Income')).toBeInTheDocument();
     expect(screen.getByText('Trend')).toBeInTheDocument();
+
+    // Check navigation buttons
+    const olderButton = screen.getByRole('button', { name: /older/i });
+    const newerButton = screen.getByRole('button', { name: /newer/i });
+
+    expect(olderButton).not.toBeDisabled();
+    expect(newerButton).toBeDisabled(); // Offset is 0
+  });
+
+  it('updates offset and re-fetches when navigation buttons are clicked', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockSummaryData,
+    } as Response);
+
+    render(
+      <MemoryRouter>
+        <SummaryPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Summary (Sep 2023 - Oct 2023)')).toBeInTheDocument();
+    });
+
+    const olderButton = screen.getByRole('button', { name: /older/i });
+    fireEvent.click(olderButton);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/summary?offset=1');
+    });
+
+    await waitFor(() => {
+      const newerButton = screen.getByRole('button', { name: /newer/i });
+      expect(newerButton).not.toBeDisabled();
+    });
+
+    const newerButton = screen.getByRole('button', { name: /newer/i });
+    fireEvent.click(newerButton);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/summary?offset=0');
+    });
   });
 
   it('handles empty data state', async () => {

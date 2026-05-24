@@ -45,6 +45,7 @@ describe('GET /api/summary', () => {
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('categories');
     expect(response.body).toHaveProperty('data');
+    expect(response.body).toHaveProperty('hasPrev', false);
 
     const foodIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'food');
     const gasIdx = response.body.categories.findIndex((c: { id: string }) => c.id === 'gas');
@@ -93,6 +94,35 @@ describe('GET /api/summary', () => {
     expect(feb.spendings[foodIdx]).toBe(200);
   });
 
+  it('should handle offset and hasPrev', async () => {
+    const db = getDb();
+    const insertTx = db.prepare(`
+      INSERT INTO "Transaction" (Hash, Month, DayOfMonth, Description, CategoryId, Amount, AccountId, FileId, PersonId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    // Add 10 more months to have 13 total (3 existing + 10 new)
+    for (let i = 1; i <= 10; i++) {
+      const month = `2023-${String(i).padStart(2, '0')}`;
+      insertTx.run(`h_extra_${i}`, month, 1, 'Extra', 'food', 10, 1, 1, 1);
+    }
+
+    // Total unique months: 13.
+    // ORDER BY Month DESC: 2024-03, 2024-02, 2024-01, 2023-10, 2023-09, 2023-08, 2023-07, 2023-06, 2023-05, 2023-04, 2023-03, 2023-02, 2023-01
+
+    const res1 = await request(app).get('/api/summary');
+    expect(res1.body.data.length).toBe(12);
+    expect(res1.body.hasPrev).toBe(true);
+    expect(res1.body.data[11].month).toBe('2024-03');
+    expect(res1.body.data[0].month).toBe('2023-02');
+
+    const res2 = await request(app).get('/api/summary?offset=1');
+    expect(res2.body.data.length).toBe(12);
+    expect(res2.body.hasPrev).toBe(false); // Only 13 months total, offset 1 gets months 2-13
+    expect(res2.body.data[11].month).toBe('2024-02');
+    expect(res2.body.data[0].month).toBe('2023-01');
+  });
+
   it('should handle no data gracefully', async () => {
     const db = getDb();
     db.prepare('DELETE FROM "Transaction"').run();
@@ -100,5 +130,6 @@ describe('GET /api/summary', () => {
     const response = await request(app).get('/api/summary');
     expect(response.status).toBe(200);
     expect(response.body.data).toEqual([]);
+    expect(response.body.hasPrev).toBe(false);
   });
 });

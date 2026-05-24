@@ -1,5 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Typography, Box, Paper, Grid, CircularProgress, Alert } from '@mui/material';
+import {
+  Typography,
+  Box,
+  Paper,
+  Grid,
+  CircularProgress,
+  Alert,
+  IconButton,
+  Tooltip as MuiTooltip,
+} from '@mui/material';
+import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import {
   PieChart,
@@ -32,6 +42,7 @@ interface MonthData {
 interface SummaryData {
   data: MonthData[];
   categories: Category[];
+  hasPrev: boolean;
 }
 
 interface PieDataPoint {
@@ -139,23 +150,34 @@ export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+  const [offset, setOffset] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('/api/summary')
-      .then((res) => {
+    let active = true;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/summary?offset=${offset}`);
         if (!res.ok) throw new Error('Failed to fetch summary data');
-        return res.json();
-      })
-      .then((data) => {
-        setSummaryData(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
+        const data = await res.json();
+        if (active) {
+          setSummaryData(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (active) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch summary data');
+          setLoading(false);
+        }
+      }
+    };
+
+    void fetchData();
+    return () => {
+      active = false;
+    };
+  }, [offset]);
 
   const averages = useMemo(() => {
     if (!summaryData || summaryData.data.length === 0) return null;
@@ -230,7 +252,7 @@ export default function SummaryPage() {
     });
   }, [summaryData]);
 
-  if (loading) {
+  if (loading && !summaryData) {
     return (
       <Box
         sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}
@@ -261,11 +283,38 @@ export default function SummaryPage() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        {averages
-          ? `Summary (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`
-          : 'Summary'}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" sx={{ flexGrow: 1 }}>
+          {averages
+            ? `Summary (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`
+            : 'Summary'}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {loading && <CircularProgress size={24} sx={{ mr: 1 }} />}
+          <MuiTooltip title="Older">
+            <span>
+              <IconButton
+                onClick={() => setOffset((prev) => prev + 1)}
+                disabled={!summaryData.hasPrev || loading}
+                aria-label="Older"
+              >
+                <ChevronLeft />
+              </IconButton>
+            </span>
+          </MuiTooltip>
+          <MuiTooltip title="Newer">
+            <span>
+              <IconButton
+                onClick={() => setOffset((prev) => Math.max(0, prev - 1))}
+                disabled={offset === 0 || loading}
+                aria-label="Newer"
+              >
+                <ChevronRight />
+              </IconButton>
+            </span>
+          </MuiTooltip>
+        </Box>
+      </Box>
 
       <Grid container spacing={3}>
         {averages && (

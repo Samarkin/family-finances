@@ -7,12 +7,13 @@ const router = Router();
 router.get('/summary', (req, res, next) => {
   try {
     const db = getDb();
+    const offset = Math.max(0, parseInt((req.query.offset as string) || '0', 10));
 
     const incomeCondition = INCOME_CATEGORIES_SQL_LIST
       ? `CategoryId IN (${INCOME_CATEGORIES_SQL_LIST})`
       : '1=0';
 
-    // 2. Get monthly aggregates for the last 12 active months (excluding payments from totals)
+    // 2. Get monthly aggregates for the window (13 months to check for hasPrev)
     const monthlyStats = db
       .prepare(
         `
@@ -23,10 +24,10 @@ router.get('/summary', (req, res, next) => {
       FROM "Transaction"
       GROUP BY Month
       ORDER BY Month DESC
-      LIMIT 12
+      LIMIT 13 OFFSET ?
     `,
       )
-      .all() as {
+      .all(offset) as {
       Month: string;
       spendingCount: number;
       incomeCount: number;
@@ -36,11 +37,15 @@ router.get('/summary', (req, res, next) => {
       return res.json({
         data: [],
         categories: SUMMARY_CATEGORIES_LIST,
+        hasPrev: false,
       });
     }
 
+    const hasPrev = monthlyStats.length > 12;
+    const windowStats = monthlyStats.slice(0, 12);
+
     // Order from oldest to newest for the chart
-    const statsReversed = [...monthlyStats].reverse();
+    const statsReversed = [...windowStats].reverse();
     const monthList = statsReversed.map((s) => s.Month);
 
     // 4. Get category breakdown per month
@@ -79,6 +84,7 @@ router.get('/summary', (req, res, next) => {
     res.json({
       data,
       categories: SUMMARY_CATEGORIES_LIST,
+      hasPrev,
     });
   } catch (error) {
     next(error);
