@@ -247,7 +247,7 @@ export default function SummaryPage() {
         obj[cat.id] = val;
         net += val;
       });
-      obj.netPosition = net;
+      obj.savings = net;
       return obj;
     });
   }, [summaryData]);
@@ -376,17 +376,17 @@ export default function SummaryPage() {
                     name: string | number | undefined,
                   ) => {
                     if (typeof value !== 'number') return [String(value), name];
-                    const val = formatCurrency(value);
-                    if (name === 'Net Position') {
-                      const isPositive = value > 0;
+                    if (name === 'Savings') {
+                      const displayValue = -value;
+                      const isNegative = displayValue < 0;
                       return [
-                        <strong key="val" style={{ color: isPositive ? 'red' : 'inherit' }}>
-                          {val}
+                        <strong key="val" style={{ color: isNegative ? 'red' : 'inherit' }}>
+                          {formatCurrency(displayValue)}
                         </strong>,
                         name,
                       ];
                     }
-                    return [val, name];
+                    return [formatCurrency(value), name];
                   }}
                 />
                 {summaryData.categories.map((cat) => (
@@ -403,11 +403,11 @@ export default function SummaryPage() {
                 ))}
                 <Line
                   type="monotone"
-                  dataKey="netPosition"
+                  dataKey="savings"
                   stroke="#000000"
                   strokeWidth={2}
                   dot={{ r: 4 }}
-                  name="Net Position"
+                  name="Savings"
                 />
               </ComposedChart>
             </ResponsiveContainer>
