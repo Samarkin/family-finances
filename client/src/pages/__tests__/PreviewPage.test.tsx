@@ -17,8 +17,8 @@ const mockData = {
       description: 'Test Transaction 1',
       amount: 100.5,
       rawCategory: 'Food',
-      categoryId: undefined,
-      personId: undefined,
+      categoryId: null,
+      personId: null,
     },
     {
       id: 2,
@@ -26,8 +26,8 @@ const mockData = {
       description: 'Test Transaction 2',
       amount: 200.0,
       rawCategory: 'Other',
-      categoryId: undefined,
-      personId: undefined,
+      categoryId: null,
+      personId: null,
     },
     {
       id: 3,
@@ -35,8 +35,8 @@ const mockData = {
       description: 'Test Transaction 3',
       amount: 50.0,
       rawCategory: 'Bills',
-      categoryId: undefined,
-      personId: undefined,
+      categoryId: null,
+      personId: null,
     },
   ],
   duplicateCount: 1,
@@ -776,6 +776,213 @@ describe('PreviewPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Submit failed msg')).toBeInTheDocument();
+    });
+  });
+
+  it('shows undo snackbar after bulk update and performs undo', async () => {
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => mockData } as Response);
+        if (url === '/api/preview/123/bulk-update' && options?.method === 'POST')
+          return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    // Perform bulk update on first row
+    fireEvent.mouseDown(screen.getAllByText('Select...')[2]);
+    fireEvent.click(screen.getByText('Groceries'));
+
+    // Verify snackbar appears
+    await waitFor(() => {
+      expect(screen.getByText('Category changed for 1 rows.')).toBeInTheDocument();
+    });
+
+    const undoBtn = screen.getByText('UNDO');
+    expect(undoBtn).toBeInTheDocument();
+
+    // Click UNDO
+    fireEvent.click(undoBtn);
+
+    await waitFor(() => {
+      // Undo should call bulk-update again with the original value (null)
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/preview/123/bulk-update',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            ids: [1],
+            categoryId: null,
+          }),
+        }),
+      );
+    });
+
+    // Snackbar should be gone
+    await waitFor(() => {
+      expect(screen.queryByText(/Category changed for 1 rows/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('restores multiple original values during undo', async () => {
+    const mixedData = {
+      ...mockData,
+      transactions: [
+        { ...mockData.transactions[0], id: 1, categoryId: 'food' },
+        { ...mockData.transactions[1], id: 2, categoryId: 'groceries' },
+      ],
+    };
+
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => mixedData } as Response);
+        if (url === '/api/preview/123/bulk-update' && options?.method === 'POST')
+          return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    // Select both rows
+    fireEvent.click(screen.getByText('Test Transaction 1'));
+    fireEvent.click(screen.getByText('Test Transaction 2'));
+
+    // Perform bulk update to 'groceries' using Row 1's dropdown
+    fireEvent.mouseDown(screen.getByText('Food & Drinks'));
+    // Select 'Groceries' from the dropdown.
+    // There's already one 'Groceries' in Row 2, so the one in the portal will be the second one.
+    fireEvent.click(screen.getAllByText('Groceries')[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Category changed for 2 rows/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('UNDO'));
+
+    await waitFor(() => {
+      // Should result in two separate calls to restore 'food' and 'groceries'
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/preview/123/bulk-update',
+        expect.objectContaining({
+          body: JSON.stringify({ ids: [1], categoryId: 'food' }),
+        }),
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/preview/123/bulk-update',
+        expect.objectContaining({
+          body: JSON.stringify({ ids: [2], categoryId: 'groceries' }),
+        }),
+      );
+    });
+  });
+
+  it('clears undo state when account is changed', async () => {
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => mockData } as Response);
+        if (url === '/api/preview/123/bulk-update' && options?.method === 'POST')
+          return Promise.resolve({ ok: true } as Response);
+        if (url === '/api/preview/123/account' && options?.method === 'PUT')
+          return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    // Trigger undo snackbar
+    fireEvent.mouseDown(screen.getAllByText('Select...')[2]);
+    fireEvent.click(screen.getByText('Groceries'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Category changed for 1 rows.')).toBeInTheDocument();
+    });
+
+    // Change account
+    fireEvent.mouseDown(screen.getByLabelText('Account'));
+    fireEvent.click(screen.getByText('Test Bank'));
+
+    // Snackbar should disappear
+    await waitFor(() => {
+      expect(screen.queryByText('Category changed for 1 rows.')).not.toBeInTheDocument();
+    });
+  });
+
+  it('clears undo state when sign is toggled', async () => {
+    mockFetch.mockImplementation((url, options) => {
+      if (typeof url === 'string') {
+        if (url === '/api/accounts')
+          return Promise.resolve({ ok: true, json: async () => mockAccounts } as Response);
+        if (url === '/api/preview/123')
+          return Promise.resolve({ ok: true, json: async () => mockData } as Response);
+        if (url === '/api/preview/123/bulk-update' && options?.method === 'POST')
+          return Promise.resolve({ ok: true } as Response);
+        if (url === '/api/preview/123/sign' && options?.method === 'PUT')
+          return Promise.resolve({ ok: true } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/preview/123']}>
+        <Routes>
+          <Route path="/preview/:id" element={<PreviewPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Test Transaction 1')).toBeInTheDocument());
+
+    // Trigger undo snackbar
+    fireEvent.mouseDown(screen.getAllByText('Select...')[2]);
+    fireEvent.click(screen.getByText('Groceries'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Category changed for 1 rows.')).toBeInTheDocument();
+    });
+
+    // Toggle sign
+    fireEvent.click(screen.getByLabelText('Invert Signs'));
+
+    // Snackbar should disappear
+    await waitFor(() => {
+      expect(screen.queryByText('Category changed for 1 rows.')).not.toBeInTheDocument();
     });
   });
 

@@ -322,6 +322,72 @@ describe('POST /api/preview/:id/bulk-update', () => {
     expect(response.status).toBe(400);
     expect(response.body.error).toContain('do not belong to this file');
   });
+
+  it('should reset CategoryId to null without modifying PersonId', async () => {
+    const db = getDb();
+    const { lastInsertRowid: personId } = db
+      .prepare('INSERT INTO Person (Name) VALUES (?)')
+      .run('P1_resetCategory');
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    const { lastInsertRowid: tx1Id } = db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+      .run('h1', '2023-01-01', 'T1', 10, 'food', personId, fileStageId);
+
+    // Reset CategoryId to null, PersonId not sent in body
+    const response = await request(app)
+      .post(`/api/preview/${fileStageId}/bulk-update`)
+      .send({
+        ids: [tx1Id],
+        categoryId: null,
+      });
+
+    expect(response.status).toBe(200);
+
+    const txs = db
+      .prepare('SELECT CategoryId, PersonId FROM TransactionStage WHERE TransactionStageId = ?')
+      .all(tx1Id) as { CategoryId: string | null; PersonId: number | null }[];
+
+    expect(txs[0].CategoryId).toBeNull();
+    expect(txs[0].PersonId).toBe(Number(personId)); // unchanged
+  });
+
+  it('should reset PersonId to null without modifying CategoryId', async () => {
+    const db = getDb();
+    const { lastInsertRowid: personId } = db
+      .prepare('INSERT INTO Person (Name) VALUES (?)')
+      .run('P1_resetPerson');
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    const { lastInsertRowid: tx1Id } = db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+      .run('h1', '2023-01-01', 'T1', 10, 'food', personId, fileStageId);
+
+    // Reset PersonId to null, CategoryId not sent in body
+    const response = await request(app)
+      .post(`/api/preview/${fileStageId}/bulk-update`)
+      .send({
+        ids: [tx1Id],
+        personId: null,
+      });
+
+    expect(response.status).toBe(200);
+
+    const txs = db
+      .prepare('SELECT CategoryId, PersonId FROM TransactionStage WHERE TransactionStageId = ?')
+      .all(tx1Id) as { CategoryId: string | null; PersonId: number | null }[];
+
+    expect(txs[0].PersonId).toBeNull();
+    expect(txs[0].CategoryId).toBe('food'); // unchanged
+  });
 });
 
 describe('POST /api/preview/:id/submit', () => {

@@ -27,7 +27,10 @@ import {
   TableRow,
   Checkbox,
   TableSortLabel,
+  Snackbar,
+  IconButton,
 } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import type { SelectChangeEvent } from '@mui/material';
 
 interface Account {
@@ -43,6 +46,15 @@ interface StagedTransaction {
   rawCategory?: string;
   categoryId?: string;
   personId?: number;
+}
+
+interface UndoAction {
+  message: string;
+  field: 'categoryId' | 'personId';
+  groups: {
+    value: string | number | null;
+    ids: number[];
+  }[];
 }
 
 interface PreviewData {
@@ -66,6 +78,7 @@ export default function PreviewPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
 
   // Selection & Sort state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -201,10 +214,12 @@ export default function PreviewPage() {
       return;
     }
     const accountId = value === '' ? null : (value as number);
+    setUndoAction(null);
     await updateAccount(accountId);
   };
 
   const handleSignToggle = async () => {
+    setUndoAction(null);
     try {
       const response = await fetch(`/api/preview/${id}/sign`, {
         method: 'PUT',
@@ -227,11 +242,38 @@ export default function PreviewPage() {
 
   const handleBulkUpdate = async (
     ids: number[],
-    categoryId?: string,
-    personId?: number | string,
+    categoryId?: string | null,
+    personId?: number | string | null,
+    skipUndo = false,
   ) => {
     if (ids.length === 0) return;
     if (categoryId === undefined && personId === undefined) return;
+
+    if (!skipUndo && data) {
+      const field = categoryId !== undefined ? 'categoryId' : 'personId';
+      const groupsMap = new Map<string | number | null, number[]>();
+
+      ids.forEach((txId) => {
+        const tx = data.transactions.find((t) => t.id === txId);
+        const val = tx?.[field] ?? null;
+        if (!groupsMap.has(val)) {
+          groupsMap.set(val, []);
+        }
+        groupsMap.get(val)!.push(txId);
+      });
+
+      const groups = Array.from(groupsMap.entries()).map(([value, groupIds]) => ({
+        value,
+        ids: groupIds,
+      }));
+
+      const fieldName = field === 'categoryId' ? 'Category' : 'Person';
+      setUndoAction({
+        message: `${fieldName} changed for ${ids.length} rows.`,
+        field,
+        groups,
+      });
+    }
 
     try {
       const response = await fetch(`/api/preview/${id}/bulk-update`, {
@@ -239,8 +281,8 @@ export default function PreviewPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ids,
-          categoryId: categoryId || undefined,
-          personId: personId || undefined,
+          categoryId,
+          personId,
         }),
       });
 
@@ -249,6 +291,26 @@ export default function PreviewPage() {
       }
     } catch (err) {
       console.error('Bulk update failed:', err);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoAction) return;
+
+    const { field, groups } = undoAction;
+    setUndoAction(null);
+
+    try {
+      for (const group of groups) {
+        await handleBulkUpdate(
+          group.ids,
+          field === 'categoryId' ? (group.value as string | null) : undefined,
+          field === 'personId' ? (group.value as number | null) : undefined,
+          true,
+        );
+      }
+    } catch (err) {
+      console.error('Undo failed:', err);
     }
   };
 
@@ -754,6 +816,26 @@ export default function PreviewPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={!!undoAction}
+        message={undoAction?.message}
+        action={
+          <>
+            <Button color="primary" size="small" onClick={handleUndo}>
+              UNDO
+            </Button>
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={() => setUndoAction(null)}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </>
+        }
+      />
     </Box>
   );
 }
