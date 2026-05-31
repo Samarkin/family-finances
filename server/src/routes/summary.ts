@@ -81,13 +81,13 @@ router.get('/summary', (req, res, next) => {
       };
     });
 
-    res.json({
+    return res.json({
       data,
       categories: SUMMARY_CATEGORIES_LIST,
       hasPrev,
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 
