@@ -2,7 +2,7 @@ export const CATEGORIES = {
   salary: { name: 'Salary', color: '#7f7f7f', isIncome: true },
   stock: { name: 'Stock', color: '#7faf7f', isIncome: true },
   payments: { name: 'Payments & Transfers', color: '#607d8b' },
-  cashback: { name: 'Cashback & Settlements', color: '#ffc107' },
+  cashback: { name: 'Cashback & Settlements', color: '#ffc107', isIncome: true },
   housing: { name: 'Housing', color: '#3366cc' },
   food: { name: 'Food & Drinks', color: '#ff9900' },
   groceries: { name: 'Groceries', color: '#4caf50' },
