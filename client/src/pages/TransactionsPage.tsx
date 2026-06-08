@@ -9,8 +9,17 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Popover,
+  TextField,
+  Button,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
-import { CloudUpload as UploadIcon } from '@mui/icons-material';
+import {
+  CloudUpload as UploadIcon,
+  ChatBubble as ChatBubbleIcon,
+  ChatBubbleOutlineOutlined as ChatBubbleOutlineIcon,
+} from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef, GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
@@ -23,6 +32,7 @@ interface TransactionData {
   amount: number;
   accountId: number;
   personId: number;
+  comment: string | null;
 }
 
 export default function TransactionsPage() {
@@ -52,6 +62,11 @@ export default function TransactionsPage() {
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
 
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+
+  const [commentAnchor, setCommentAnchor] = useState<HTMLElement | null>(null);
+  const [commentTxId, setCommentTxId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentSaving, setCommentSaving] = useState(false);
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -168,6 +183,43 @@ export default function TransactionsPage() {
     [handleUpload],
   );
 
+  const handleCommentOpen = useCallback(
+    (e: React.MouseEvent<HTMLElement>, txId: string, currentComment: string | null) => {
+      e.stopPropagation();
+      setCommentTxId(txId);
+      setCommentText(currentComment ?? '');
+      setCommentAnchor(e.currentTarget);
+    },
+    [],
+  );
+
+  const handleCommentClose = useCallback(() => {
+    setCommentAnchor(null);
+    setCommentTxId(null);
+  }, []);
+
+  const handleCommentSave = useCallback(async () => {
+    if (!commentTxId) return;
+    setCommentSaving(true);
+    try {
+      const res = await fetch(`/api/transactions/${commentTxId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment: commentText || null }),
+      });
+      if (res.ok) {
+        setData((prev) =>
+          prev.map((tx) => (tx.id === commentTxId ? { ...tx, comment: commentText || null } : tx)),
+        );
+        handleCommentClose();
+      }
+    } catch (err) {
+      console.error('Failed to save comment:', err);
+    } finally {
+      setCommentSaving(false);
+    }
+  }, [commentTxId, commentText, handleCommentClose]);
+
   const currencyFormatter = useMemo(
     () =>
       new Intl.NumberFormat('en-US', {
@@ -236,8 +288,32 @@ export default function TransactionsPage() {
         width: 180,
         valueGetter: (value?: number) => (value ? accounts[value] || value : value),
       },
+      {
+        field: 'comment',
+        headerName: '',
+        width: 40,
+        sortable: false,
+        renderCell: (params) => {
+          const comment = params.value as string | null;
+          return (
+            <Tooltip title={comment ?? <em>No comment</em>}>
+              <IconButton
+                size="small"
+                aria-label="comment"
+                onClick={(e) => handleCommentOpen(e, params.row.id as string, comment)}
+              >
+                {comment ? (
+                  <ChatBubbleIcon fontSize="small" color="primary" />
+                ) : (
+                  <ChatBubbleOutlineIcon fontSize="small" color="disabled" />
+                )}
+              </IconButton>
+            </Tooltip>
+          );
+        },
+      },
     ],
-    [persons, accounts, categories, currencyFormatter],
+    [persons, accounts, categories, currencyFormatter, handleCommentOpen],
   );
 
   const dropdownMonths = useMemo(() => {
@@ -348,6 +424,40 @@ export default function TransactionsPage() {
           disableColumnMenu
         />
       </Box>
+
+      <Popover
+        open={!!commentAnchor}
+        anchorEl={commentAnchor}
+        onClose={handleCommentClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Box sx={{ p: 2, width: 300 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Comment
+          </Typography>
+          <TextField
+            multiline
+            rows={3}
+            fullWidth
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            autoFocus
+          />
+          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button size="small" onClick={handleCommentClose}>
+              Cancel
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleCommentSave}
+              disabled={commentSaving}
+            >
+              Save
+            </Button>
+          </Box>
+        </Box>
+      </Popover>
     </Box>
   );
 }

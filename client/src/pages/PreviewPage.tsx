@@ -29,8 +29,14 @@ import {
   TableSortLabel,
   Snackbar,
   IconButton,
+  Popover,
+  Tooltip,
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import {
+  Close as CloseIcon,
+  ChatBubble as ChatBubbleIcon,
+  ChatBubbleOutlineOutlined as ChatBubbleOutlineIcon,
+} from '@mui/icons-material';
 import type { SelectChangeEvent } from '@mui/material';
 
 interface Account {
@@ -46,6 +52,7 @@ interface StagedTransaction {
   rawCategory?: string;
   categoryId?: string;
   personId?: number;
+  comment?: string | null;
 }
 
 interface UndoAction {
@@ -98,6 +105,11 @@ export default function PreviewPage() {
   const [personModalError, setPersonModalError] = useState<string | null>(null);
 
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+
+  const [commentAnchor, setCommentAnchor] = useState<HTMLElement | null>(null);
+  const [commentTxId, setCommentTxId] = useState<number | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentSaving, setCommentSaving] = useState(false);
 
   const weekdayFormatter = useMemo(() => new Intl.DateTimeFormat('en-US', { weekday: 'long' }), []);
 
@@ -391,6 +403,50 @@ export default function PreviewPage() {
     }
   };
 
+  const handleCommentOpen = (
+    e: React.MouseEvent<HTMLElement>,
+    txId: number,
+    currentComment: string | null | undefined,
+  ) => {
+    e.stopPropagation();
+    setCommentTxId(txId);
+    setCommentText(currentComment ?? '');
+    setCommentAnchor(e.currentTarget);
+  };
+
+  const handleCommentClose = () => {
+    setCommentAnchor(null);
+    setCommentTxId(null);
+  };
+
+  const handleCommentSave = async () => {
+    if (commentTxId === null) return;
+    setCommentSaving(true);
+    try {
+      const response = await fetch(`/api/preview/${id}/bulk-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [commentTxId], comment: commentText || null }),
+      });
+      if (response.ok) {
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            transactions: prev.transactions.map((tx) =>
+              tx.id === commentTxId ? { ...tx, comment: commentText || null } : tx,
+            ),
+          };
+        });
+        handleCommentClose();
+      }
+    } catch (err) {
+      console.error('Failed to save comment:', err);
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
   const handleRequestSort = (property: keyof StagedTransaction) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -616,6 +672,7 @@ export default function PreviewPage() {
                   </TableSortLabel>
                 </TableCell>
               )}
+              <TableCell sx={{ width: 40 }} />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -707,6 +764,21 @@ export default function PreviewPage() {
                   </FormControl>
                 </TableCell>
                 {hasRawCategory && <TableCell>{tx.rawCategory || '-'}</TableCell>}
+                <TableCell padding="checkbox">
+                  <Tooltip title={tx.comment ?? <em>No comment</em>}>
+                    <IconButton
+                      size="small"
+                      aria-label="comment"
+                      onClick={(e) => handleCommentOpen(e, tx.id, tx.comment)}
+                    >
+                      {tx.comment ? (
+                        <ChatBubbleIcon fontSize="small" color="primary" />
+                      ) : (
+                        <ChatBubbleOutlineIcon fontSize="small" color="disabled" />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -836,6 +908,40 @@ export default function PreviewPage() {
           </>
         }
       />
+
+      <Popover
+        open={!!commentAnchor}
+        anchorEl={commentAnchor}
+        onClose={handleCommentClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Box sx={{ p: 2, width: 300 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Comment
+          </Typography>
+          <TextField
+            multiline
+            rows={3}
+            fullWidth
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            autoFocus
+          />
+          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button size="small" onClick={handleCommentClose}>
+              Cancel
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleCommentSave}
+              disabled={commentSaving}
+            >
+              Save
+            </Button>
+          </Box>
+        </Box>
+      </Popover>
     </Box>
   );
 }

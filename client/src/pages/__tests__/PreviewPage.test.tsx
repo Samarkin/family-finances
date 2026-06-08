@@ -19,6 +19,7 @@ const mockData = {
       rawCategory: 'Food',
       categoryId: null,
       personId: null,
+      comment: 'has a note',
     },
     {
       id: 2,
@@ -28,6 +29,7 @@ const mockData = {
       rawCategory: 'Other',
       categoryId: null,
       personId: null,
+      comment: null,
     },
     {
       id: 3,
@@ -37,6 +39,7 @@ const mockData = {
       rawCategory: 'Bills',
       categoryId: null,
       personId: null,
+      comment: null,
     },
   ],
   duplicateCount: 1,
@@ -119,6 +122,10 @@ describe('PreviewPage', () => {
     // Both Person and Category are now a Select with "Select...", plus 1 for Account
     expect(screen.queryByText('MISSING')).not.toBeInTheDocument();
     expect(screen.getAllByText('Select...')).toHaveLength(7);
+
+    // Comment icons: one filled (tx1 has comment), two outlined (tx2 & tx3 don't)
+    const commentButtons = screen.getAllByRole('button', { name: 'comment' });
+    expect(commentButtons).toHaveLength(3);
   });
 
   it('renders error state on fetch failure', async () => {

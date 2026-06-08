@@ -43,6 +43,7 @@ export function initDb(dbPath: string) {
       AccountId INTEGER NOT NULL,
       FileId INTEGER NOT NULL,
       PersonId INTEGER NOT NULL,
+      Comment TEXT,
       FOREIGN KEY (AccountId) REFERENCES Account(AccountId),
       FOREIGN KEY (FileId) REFERENCES "File"(FileId) ON DELETE CASCADE,
       FOREIGN KEY (PersonId) REFERENCES Person(PersonId)
@@ -66,6 +67,7 @@ export function initDb(dbPath: string) {
       CategoryId TEXT,
       FileStageId INTEGER NOT NULL,
       PersonId INTEGER,
+      Comment TEXT,
       FOREIGN KEY (FileStageId) REFERENCES FileStage(FileStageId) ON DELETE CASCADE,
       FOREIGN KEY (PersonId) REFERENCES Person(PersonId),
       UNIQUE(FileStageId, Hash)

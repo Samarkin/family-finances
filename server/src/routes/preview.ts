@@ -44,6 +44,7 @@ router.get('/preview/:id', (req: Request, res: Response) => {
           rawCategory: tx.RawCategory,
           categoryId: tx.CategoryId,
           personId: tx.PersonId,
+          comment: tx.Comment,
         };
       })
       .filter((tx) => tx !== null);
@@ -141,7 +142,7 @@ router.put('/preview/:id/account', (req: Request, res: Response) => {
 
 router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
   const { id } = req.params;
-  const { ids, categoryId, personId } = req.body;
+  const { ids, categoryId, personId, comment } = req.body;
   const db = getDb();
 
   try {
@@ -161,7 +162,7 @@ router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
       // Update transactions
       let query = 'UPDATE TransactionStage SET ';
       const updates: string[] = [];
-      const params: (string | number)[] = [];
+      const params: (string | number | null)[] = [];
 
       if (categoryId !== undefined) {
         updates.push('CategoryId = ?');
@@ -171,6 +172,10 @@ router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
         updates.push('PersonId = ?');
         params.push(personId);
       }
+      if (comment !== undefined) {
+        updates.push('Comment = ?');
+        params.push(comment);
+      }
 
       if (updates.length === 0) return;
 
@@ -178,11 +183,11 @@ router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
 
       if (Array.isArray(ids) && ids.length > 0) {
         query += ` WHERE TransactionStageId IN (${ids.map(() => '?').join(',')})`;
-        params.push(...ids);
+        params.push(...(ids as (string | number | null)[]));
       } else {
         // Apply to all transactions in this file
         query += ' WHERE FileStageId = ?';
-        params.push(id as string);
+        params.push(id);
       }
 
       db.prepare(query).run(...params);
@@ -240,18 +245,19 @@ router.post('/preview/:id/submit', (req: Request, res: Response) => {
     // Move non-duplicate transactions using a single SQL query
     db.prepare(
       `
-      INSERT OR IGNORE INTO "Transaction" (Hash, Month, DayOfMonth, Description, CategoryId, Amount, AccountId, FileId, PersonId)
-      SELECT 
-        Hash, 
-        substr(Date, 1, 7), 
-        CAST(substr(Date, 9, 2) AS INTEGER), 
-        Description, 
-        CategoryId, 
-        CASE WHEN ? = 1 THEN -Amount ELSE Amount END, 
-        ?, 
-        ?, 
-        PersonId 
-      FROM TransactionStage 
+      INSERT OR IGNORE INTO "Transaction" (Hash, Month, DayOfMonth, Description, CategoryId, Amount, AccountId, FileId, PersonId, Comment)
+      SELECT
+        Hash,
+        substr(Date, 1, 7),
+        CAST(substr(Date, 9, 2) AS INTEGER),
+        Description,
+        CategoryId,
+        CASE WHEN ? = 1 THEN -Amount ELSE Amount END,
+        ?,
+        ?,
+        PersonId,
+        Comment
+      FROM TransactionStage
       WHERE FileStageId = ?
     `,
     ).run(fileStage.Sign ? 1 : 0, fileStage.AccountId, fileId, id);

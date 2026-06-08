@@ -30,4 +30,5 @@ export interface TransactionStageRow {
   RawCategory: string | null;
   CategoryId: CategoryId | null;
   PersonId: number | null;
+  Comment: string | null;
 }

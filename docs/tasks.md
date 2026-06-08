@@ -138,7 +138,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Display indicators in the table cells showing whether a file exists covering that specific account and month.
     - Add a navigation link to this new "Accounts" page in the main layout.
     - Add both UI component tests and server-side integration tests.
-- [ ] **5.3 Transaction Comments**: Add a comment field for every transaction.
+- [x] **5.3 Transaction Comments**: Add a comment field for every transaction.
   - **Requirements**:
     - Update the database schema in `server/src/db/init.ts` to add a `Comment` column to the `Transaction` table.
     - Perform a one-time migration for the existing database (if it exists) to add the new column. Always create a backup of the database before running the migration.

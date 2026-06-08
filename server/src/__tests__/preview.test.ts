@@ -28,13 +28,13 @@ describe('GET /api/preview/:id', () => {
       .prepare('INSERT INTO FileStage (Filename, Sign) VALUES (?, ?)')
       .run('test.csv', 0);
 
-    // Seed TransactionStage
+    // Seed TransactionStage with a comment
     db.prepare(
       `
-      INSERT INTO TransactionStage (Hash, Date, Description, Amount, RawCategory, FileStageId)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO TransactionStage (Hash, Date, Description, Amount, RawCategory, Comment, FileStageId)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
-    ).run('hash1', '2023-01-01', 'Test Tx 1', 10.5, 'Food', fileStageId);
+    ).run('hash1', '2023-01-01', 'Test Tx 1', 10.5, 'Food', 'a note', fileStageId);
 
     const response = await request(app).get(`/api/preview/${fileStageId}`);
 
@@ -49,6 +49,7 @@ describe('GET /api/preview/:id', () => {
           description: 'Test Tx 1',
           amount: 10.5,
           rawCategory: 'Food',
+          comment: 'a note',
         },
       ],
       categories: expect.any(Object),
@@ -356,6 +357,54 @@ describe('POST /api/preview/:id/bulk-update', () => {
     expect(txs[0].PersonId).toBe(Number(personId)); // unchanged
   });
 
+  it('should update comment for selected transactions', async () => {
+    const db = getDb();
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    const { lastInsertRowid: tx1Id } = db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, FileStageId) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('h1', '2023-01-01', 'T1', 10, fileStageId);
+
+    const response = await request(app)
+      .post(`/api/preview/${fileStageId}/bulk-update`)
+      .send({ ids: [tx1Id], comment: 'test note' });
+
+    expect(response.status).toBe(200);
+
+    const tx = db
+      .prepare('SELECT Comment FROM TransactionStage WHERE TransactionStageId = ?')
+      .get(tx1Id) as { Comment: string | null };
+    expect(tx.Comment).toBe('test note');
+  });
+
+  it('should clear comment when null is sent', async () => {
+    const db = getDb();
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    const { lastInsertRowid: tx1Id } = db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, Comment, FileStageId) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('h1', '2023-01-01', 'T1', 10, 'existing note', fileStageId);
+
+    const response = await request(app)
+      .post(`/api/preview/${fileStageId}/bulk-update`)
+      .send({ ids: [tx1Id], comment: null });
+
+    expect(response.status).toBe(200);
+
+    const tx = db
+      .prepare('SELECT Comment FROM TransactionStage WHERE TransactionStageId = ?')
+      .get(tx1Id) as { Comment: string | null };
+    expect(tx.Comment).toBeNull();
+  });
+
   it('should reset PersonId to null without modifying CategoryId', async () => {
     const db = getDb();
     const { lastInsertRowid: personId } = db
@@ -405,7 +454,7 @@ describe('POST /api/preview/:id/submit', () => {
     db.prepare("DELETE FROM Person WHERE Name != 'Family'").run();
   });
 
-  it('should successfully submit valid data', async () => {
+  it('should successfully submit valid data and copy comment', async () => {
     const db = getDb();
     const { lastInsertRowid: accountId } = db
       .prepare('INSERT INTO Account (Name) VALUES (?)')
@@ -420,10 +469,10 @@ describe('POST /api/preview/:id/submit', () => {
 
     db.prepare(
       `
-      INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, FileStageId)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, Comment, FileStageId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    ).run('h1', '2023-01-15', 'Test Tx', 100.0, 'food', personId, fileStageId);
+    ).run('h1', '2023-01-15', 'Test Tx', 100.0, 'food', personId, 'submit note', fileStageId);
 
     const response = await request(app).post(`/api/preview/${fileStageId}/submit`);
 
@@ -438,7 +487,7 @@ describe('POST /api/preview/:id/submit', () => {
     expect(file.Filename).toBe('test.csv');
     expect(file.AccountId).toBe(Number(accountId));
 
-    // Verify Transaction was created
+    // Verify Transaction was created with comment
     const tx = db.prepare('SELECT * FROM "Transaction"').get() as {
       Hash: string;
       Month: string;
@@ -446,6 +495,7 @@ describe('POST /api/preview/:id/submit', () => {
       Amount: number;
       CategoryId: string;
       PersonId: number;
+      Comment: string | null;
     };
     expect(tx.Hash).toBe('h1');
     expect(tx.Month).toBe('2023-01');
@@ -453,10 +503,38 @@ describe('POST /api/preview/:id/submit', () => {
     expect(tx.Amount).toBe(100.0);
     expect(tx.CategoryId).toBe('food');
     expect(tx.PersonId).toBe(Number(personId));
+    expect(tx.Comment).toBe('submit note');
 
     // Verify FileStage was deleted
     const count = db.prepare('SELECT COUNT(*) as count FROM FileStage').get() as { count: number };
     expect(count.count).toBe(0);
+  });
+
+  it('should copy comment from stage to main transaction on submit', async () => {
+    const db = getDb();
+    const { lastInsertRowid: accountId } = db
+      .prepare('INSERT INTO Account (Name) VALUES (?)')
+      .run('Test Account');
+    const { lastInsertRowid: personId } = db
+      .prepare('INSERT INTO Person (Name) VALUES (?)')
+      .run('Test Person');
+
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename, AccountId, Sign) VALUES (?, ?, ?)')
+      .run('test.csv', accountId, 0);
+
+    db.prepare(
+      `INSERT INTO TransactionStage (Hash, Date, Description, Amount, CategoryId, PersonId, Comment, FileStageId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run('h-comment', '2023-02-10', 'Noted Tx', 50.0, 'food', personId, 'my note', fileStageId);
+
+    const response = await request(app).post(`/api/preview/${fileStageId}/submit`);
+    expect(response.status).toBe(200);
+
+    const tx = db.prepare('SELECT Comment FROM "Transaction" WHERE Hash = ?').get('h-comment') as {
+      Comment: string | null;
+    };
+    expect(tx.Comment).toBe('my note');
   });
 
   it('should return 400 if AccountId is missing', async () => {

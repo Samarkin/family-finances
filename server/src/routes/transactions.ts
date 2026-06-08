@@ -97,14 +97,15 @@ router.get('/transactions', (req, res, next) => {
     };
 
     const dataQuery = `
-      SELECT 
+      SELECT
         t.Hash as id,
         t.Month || '-' || printf('%02d', t.DayOfMonth) as date,
         t.Description as description,
         t.CategoryId as categoryId,
         t.Amount as amount,
         t.AccountId as accountId,
-        t.PersonId as personId
+        t.PersonId as personId,
+        t.Comment as comment
       FROM "Transaction" t
       LEFT JOIN Person p ON t.PersonId = p.PersonId
       LEFT JOIN Account a ON t.AccountId = a.AccountId
@@ -139,6 +140,32 @@ router.get('/transactions', (req, res, next) => {
       accounts,
       categories: CATEGORY_NAMES,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/transactions/:hash', (req, res, next) => {
+  try {
+    const { hash } = req.params;
+    const { comment } = req.body;
+
+    if (comment === undefined) {
+      res.status(400).json({ error: 'No fields to update' });
+      return;
+    }
+
+    const db = getDb();
+    const result = db
+      .prepare('UPDATE "Transaction" SET Comment = ? WHERE Hash = ?')
+      .run(comment, hash);
+
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Transaction not found' });
+      return;
+    }
+
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

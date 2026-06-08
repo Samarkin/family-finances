@@ -18,6 +18,7 @@ const mockTransactionsData = {
       categoryId: 'cat-1',
       personId: 1,
       accountId: 1,
+      comment: 'grocery run',
     },
   ],
   totalCount: 1,
@@ -68,6 +69,9 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('Checking')).toBeInTheDocument();
     expect(screen.getByText('-$50.00')).toBeInTheDocument();
     expect(screen.getByText(/Payments: \$100\.00/)).toBeInTheDocument();
+
+    // Comment icon should render (filled since tx-1 has a comment)
+    expect(screen.getByRole('button', { name: 'comment' })).toBeInTheDocument();
   });
 
   it('handles file upload via click and navigates', async () => {
