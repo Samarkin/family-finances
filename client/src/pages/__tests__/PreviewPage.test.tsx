@@ -112,7 +112,7 @@ describe('PreviewPage', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('Test Transaction 1')).toBeInTheDocument();
-    expect(screen.getByText('100.50')).toBeInTheDocument();
+    expect(screen.getByText('$100.50')).toBeInTheDocument();
 
     // Check for new UI elements
     expect(screen.getByLabelText('Account')).toBeInTheDocument();

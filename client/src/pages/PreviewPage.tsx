@@ -33,6 +33,7 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import type { SelectChangeEvent } from '@mui/material';
 import type { Account, CategoryMap } from '../types';
+import { formatCurrency } from '../utils/format';
 import { CommentButton, CommentPopover, useCommentEditor } from '../components/CommentPopover';
 
 interface StagedTransaction {
@@ -667,7 +668,7 @@ export default function PreviewPage() {
                     const isAnomaly = isIncome ? tx.amount > 0 : tx.amount < 0;
                     return (
                       <span style={{ color: isAnomaly ? 'red' : 'inherit' }}>
-                        {tx.amount.toFixed(2)}
+                        {formatCurrency(tx.amount)}
                       </span>
                     );
                   })()}

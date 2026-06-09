@@ -238,7 +238,7 @@ export default function TransactionsPage() {
       { field: 'description', headerName: 'Description', flex: 1, minWidth: 200 },
       {
         field: 'amount',
-        headerName: 'Amount',
+        headerName: 'Expense',
         width: 120,
         type: 'number',
         renderCell: (params) => {
