@@ -45,12 +45,75 @@ interface SummaryData {
   hasPrev: boolean;
 }
 
+interface AccountData {
+  id: number;
+  name: string;
+}
+
+interface FileData {
+  id: number;
+  filename: string;
+  accountName: string;
+  range: string;
+}
+
 interface PieDataPoint {
   name: string;
   value: number;
   color: string;
   id: string;
 }
+
+const getMonthsBetween = (start: string, end: string): string[] => {
+  const months: string[] = [];
+  let [year, month] = start.split('-').map(Number);
+  const [endYear, endMonth] = end.split('-').map(Number);
+  if (isNaN(year) || isNaN(month) || isNaN(endYear) || isNaN(endMonth)) return months;
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    months.push(`${year}-${month.toString().padStart(2, '0')}`);
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
+    }
+  }
+  return months;
+};
+
+const monthsToRanges = (months: string[]): string => {
+  if (months.length === 0) return '';
+  const sorted = [...months].sort();
+  const ranges: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const [py, pm] = prev.split('-').map(Number);
+    let ny = py,
+      nm = pm + 1;
+    if (nm > 12) {
+      nm = 1;
+      ny++;
+    }
+    const expectedNext = `${ny}-${nm.toString().padStart(2, '0')}`;
+    if (sorted[i] === expectedNext) {
+      prev = sorted[i];
+    } else {
+      ranges.push(
+        start === prev
+          ? formatMonthCompact(start)
+          : `${formatMonthCompact(start)} - ${formatMonthCompact(prev)}`,
+      );
+      start = sorted[i];
+      prev = sorted[i];
+    }
+  }
+  ranges.push(
+    start === prev
+      ? formatMonthCompact(start)
+      : `${formatMonthCompact(start)} - ${formatMonthCompact(prev)}`,
+  );
+  return ranges.join(', ');
+};
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -151,7 +214,21 @@ export default function SummaryPage() {
   const [error, setError] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [offset, setOffset] = useState(0);
+  const [accounts, setAccounts] = useState<AccountData[]>([]);
+  const [files, setFiles] = useState<FileData[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchCoverageData = async () => {
+      const [accRes, filesRes] = await Promise.all([fetch('/api/accounts'), fetch('/api/files')]);
+      if (accRes.ok && filesRes.ok) {
+        const [accData, filesData] = await Promise.all([accRes.json(), filesRes.json()]);
+        setAccounts(accData as AccountData[]);
+        setFiles((filesData as { data: FileData[] }).data);
+      }
+    };
+    void fetchCoverageData();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -252,6 +329,29 @@ export default function SummaryPage() {
     });
   }, [summaryData]);
 
+  const completion = useMemo(() => {
+    if (!summaryData || summaryData.data.length === 0 || accounts.length === 0) return null;
+    const displayedMonths = summaryData.data.map((d) => d.month);
+    const coverage: Record<string, Set<string>> = {};
+    files.forEach((file) => {
+      const [start, end] = file.range.split(' : ');
+      getMonthsBetween(start, end).forEach((m) => {
+        if (!coverage[file.accountName]) coverage[file.accountName] = new Set();
+        coverage[file.accountName].add(m);
+      });
+    });
+    let totalCovered = 0;
+    const accountGaps: { name: string; missingMonths: string[] }[] = [];
+    accounts.forEach((account) => {
+      const covered = coverage[account.name] ?? new Set<string>();
+      const missing = displayedMonths.filter((m) => !covered.has(m));
+      totalCovered += displayedMonths.length - missing.length;
+      if (missing.length > 0) accountGaps.push({ name: account.name, missingMonths: missing });
+    });
+    const percentage = (totalCovered / (accounts.length * displayedMonths.length)) * 100;
+    return { percentage, accountGaps };
+  }, [summaryData, accounts, files]);
+
   if (loading && !summaryData) {
     return (
       <Box
@@ -288,6 +388,30 @@ export default function SummaryPage() {
           {averages
             ? `Summary (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`
             : 'Summary'}
+          {completion && completion.percentage < 100 && (
+            <MuiTooltip
+              title={
+                <Box>
+                  <div>Missing data:</div>
+                  {completion.accountGaps.map((gap) => (
+                    <div key={gap.name}>
+                      {gap.name}: {monthsToRanges(gap.missingMonths)}
+                    </div>
+                  ))}
+                </Box>
+              }
+            >
+              <Typography
+                component="span"
+                variant="body2"
+                color="error"
+                onClick={() => navigate('/accounts')}
+                sx={{ ml: 1.5, verticalAlign: 'middle', cursor: 'pointer' }}
+              >
+                {completion.percentage.toFixed(1)}% complete
+              </Typography>
+            </MuiTooltip>
+          )}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {loading && <CircularProgress size={24} sx={{ mr: 1 }} />}

@@ -31,16 +31,50 @@ const mockSummaryData = {
   hasPrev: true,
 };
 
+// Full coverage for the two displayed months → 100% complete, label hidden
+const mockAccounts = [{ id: 1, name: 'Checking' }];
+const mockFiles = {
+  data: [{ id: 1, filename: 'checking.csv', accountName: 'Checking', range: '2023-09 : 2023-10' }],
+};
+
+// Partial coverage: Savings only covers 2023-09, missing 2023-10 → 75% (3/4)
+const mockAccountsPartial = [
+  { id: 1, name: 'Checking' },
+  { id: 2, name: 'Savings' },
+];
+const mockFilesPartial = {
+  data: [
+    { id: 1, filename: 'checking.csv', accountName: 'Checking', range: '2023-09 : 2023-10' },
+    { id: 2, filename: 'savings.csv', accountName: 'Savings', range: '2023-09 : 2023-09' },
+  ],
+};
+
+function setupMocks(
+  summaryData = mockSummaryData,
+  accounts: { id: number; name: string }[] = mockAccounts,
+  files: {
+    data: { id: number; filename: string; accountName: string; range: string }[];
+  } = mockFiles,
+) {
+  mockFetch.mockImplementation((url) => {
+    const urlStr = typeof url === 'string' ? url : url.toString();
+    if (urlStr.includes('/api/accounts')) {
+      return Promise.resolve({ ok: true, json: async () => accounts } as Response);
+    }
+    if (urlStr.includes('/api/files')) {
+      return Promise.resolve({ ok: true, json: async () => files } as Response);
+    }
+    return Promise.resolve({ ok: true, json: async () => summaryData } as Response);
+  });
+}
+
 describe('SummaryPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('renders loading state then data', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => mockSummaryData,
-    } as Response);
+    setupMocks();
 
     render(
       <MemoryRouter>
@@ -72,13 +106,13 @@ describe('SummaryPage', () => {
 
     expect(olderButton).not.toBeDisabled();
     expect(newerButton).toBeDisabled(); // Offset is 0
+
+    // At 100% coverage the label is hidden
+    expect(screen.queryByText(/% complete/)).not.toBeInTheDocument();
   });
 
   it('updates offset and re-fetches when navigation buttons are clicked', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => mockSummaryData,
-    } as Response);
+    setupMocks();
 
     render(
       <MemoryRouter>
@@ -149,10 +183,7 @@ describe('SummaryPage', () => {
   });
 
   it('navigates with category filter when a spending pie slice is clicked', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => mockSummaryData,
-    } as Response);
+    setupMocks();
 
     const router = createMemoryRouter([{ path: '/', element: <SummaryPage /> }], {
       initialEntries: ['/'],
@@ -175,10 +206,7 @@ describe('SummaryPage', () => {
   });
 
   it('navigates with month filter when an area is clicked', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => mockSummaryData,
-    } as Response);
+    setupMocks();
 
     const router = createMemoryRouter([{ path: '/', element: <SummaryPage /> }], {
       initialEntries: ['/'],
@@ -198,5 +226,63 @@ describe('SummaryPage', () => {
         '/transactions?month=2023-09',
       );
     });
+  });
+
+  it('shows completion percentage when coverage is incomplete', async () => {
+    setupMocks(mockSummaryData, mockAccountsPartial, mockFilesPartial);
+
+    render(
+      <MemoryRouter>
+        <SummaryPage />
+      </MemoryRouter>,
+    );
+
+    // 2 accounts × 2 months = 4 slots; Checking: 2/2, Savings: 1/2 → 75.0%
+    await waitFor(() => {
+      expect(screen.getByText(/75\.0% complete/)).toBeInTheDocument();
+    });
+  });
+
+  it('navigates to accounts page when completion label is clicked', async () => {
+    setupMocks(mockSummaryData, mockAccountsPartial, mockFilesPartial);
+
+    const router = createMemoryRouter([{ path: '/', element: <SummaryPage /> }], {
+      initialEntries: ['/'],
+    });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/75\.0% complete/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/75\.0% complete/));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/accounts');
+    });
+  });
+
+  it('completion tooltip lists accounts with missing months', async () => {
+    setupMocks(mockSummaryData, mockAccountsPartial, mockFilesPartial);
+
+    render(
+      <MemoryRouter>
+        <SummaryPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/75\.0% complete/)).toBeInTheDocument();
+    });
+
+    fireEvent.mouseOver(screen.getByText(/75\.0% complete/));
+
+    await waitFor(() => {
+      expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    });
+
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveTextContent('Missing data:');
+    expect(tooltip).toHaveTextContent("Savings: Oct '23");
   });
 });
