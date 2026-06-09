@@ -219,6 +219,44 @@ describe('TransactionsPage', () => {
     });
   });
 
+  it('renders categoryId and personId cells as editable', async () => {
+    mockFetch.mockImplementation((url) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/api/transactions/months')) {
+        return Promise.resolve({ ok: true, json: async () => mockMonthsData } as Response);
+      }
+      if (urlStr.includes('/api/transactions')) {
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsData } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <TransactionsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Groceries')).toBeInTheDocument();
+    });
+
+    const categoryCell = container.querySelector(
+      '[data-field="categoryId"].MuiDataGrid-cell--editable',
+    );
+    const personCell = container.querySelector(
+      '[data-field="personId"].MuiDataGrid-cell--editable',
+    );
+    expect(categoryCell).toBeInTheDocument();
+    expect(personCell).toBeInTheDocument();
+
+    // Non-editable fields must not carry the editable class
+    const dateCell = container.querySelector('[data-field="date"].MuiDataGrid-cell--editable');
+    const amountCell = container.querySelector('[data-field="amount"].MuiDataGrid-cell--editable');
+    expect(dateCell).not.toBeInTheDocument();
+    expect(amountCell).not.toBeInTheDocument();
+  });
+
   it('passes category param to the transactions API', async () => {
     mockFetch.mockImplementation((url) => {
       const urlStr = url.toString();

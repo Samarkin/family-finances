@@ -141,49 +141,69 @@ describe('PUT /api/transactions/:hash', () => {
     closeDb();
   });
 
-  it('should update the comment on a transaction', async () => {
+  it('should update the comment, personId, and categoryId on a transaction', async () => {
     const db = getDb();
     db.prepare("INSERT OR IGNORE INTO Account (AccountId, Name) VALUES (1, 'Test Bank')").run();
     db.prepare("INSERT OR IGNORE INTO Person (PersonId, Name) VALUES (1, 'Family')").run();
+    db.prepare("INSERT OR IGNORE INTO Person (PersonId, Name) VALUES (2, 'Alice')").run();
     db.prepare(
       'INSERT OR IGNORE INTO "File" (FileId, Filename, AccountId) VALUES (1, \'test.csv\', 1)',
     ).run();
     db.prepare(
       `INSERT OR IGNORE INTO "Transaction" (Hash, Month, DayOfMonth, Description, CategoryId, Amount, AccountId, FileId, PersonId)
-       VALUES ('hash-comment', '2024-01', 1, 'Test', 'food', 10, 1, 1, 1)`,
+       VALUES ('hash-edit', '2024-01', 1, 'Test', 'food', 10, 1, 1, 1)`,
     ).run();
 
-    const response = await request(app)
-      .put('/api/transactions/hash-comment')
+    const commentRes = await request(app)
+      .put('/api/transactions/hash-edit')
       .send({ comment: 'my note' });
+    expect(commentRes.status).toBe(200);
+    expect(commentRes.body.success).toBe(true);
 
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
+    const personRes = await request(app).put('/api/transactions/hash-edit').send({ personId: 2 });
+    expect(personRes.status).toBe(200);
+
+    const categoryRes = await request(app)
+      .put('/api/transactions/hash-edit')
+      .send({ categoryId: 'groceries' });
+    expect(categoryRes.status).toBe(200);
 
     const tx = db
-      .prepare('SELECT Comment FROM "Transaction" WHERE Hash = ?')
-      .get('hash-comment') as { Comment: string | null };
+      .prepare('SELECT Comment, PersonId, CategoryId FROM "Transaction" WHERE Hash = ?')
+      .get('hash-edit') as { Comment: string | null; PersonId: number; CategoryId: string };
     expect(tx.Comment).toBe('my note');
+    expect(tx.PersonId).toBe(2);
+    expect(tx.CategoryId).toBe('groceries');
   });
 
   it('should clear the comment when null is sent', async () => {
     const db = getDb();
 
-    const response = await request(app)
-      .put('/api/transactions/hash-comment')
-      .send({ comment: null });
+    const response = await request(app).put('/api/transactions/hash-edit').send({ comment: null });
 
     expect(response.status).toBe(200);
 
-    const tx = db
-      .prepare('SELECT Comment FROM "Transaction" WHERE Hash = ?')
-      .get('hash-comment') as { Comment: string | null };
+    const tx = db.prepare('SELECT Comment FROM "Transaction" WHERE Hash = ?').get('hash-edit') as {
+      Comment: string | null;
+    };
     expect(tx.Comment).toBeNull();
   });
 
   it('should return 400 if no fields provided', async () => {
-    const response = await request(app).put('/api/transactions/hash-comment').send({});
+    const response = await request(app).put('/api/transactions/hash-edit').send({});
     expect(response.status).toBe(400);
+  });
+
+  it('should return 400 for unknown personId or categoryId', async () => {
+    const unknownPerson = await request(app)
+      .put('/api/transactions/hash-edit')
+      .send({ personId: 9999 });
+    expect(unknownPerson.status).toBe(400);
+
+    const unknownCategory = await request(app)
+      .put('/api/transactions/hash-edit')
+      .send({ categoryId: 'not-a-real-category' });
+    expect(unknownCategory.status).toBe(400);
   });
 
   it('should return 404 for unknown hash', async () => {

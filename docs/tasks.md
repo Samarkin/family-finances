@@ -146,7 +146,7 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Update `TransactionsPage.tsx` to handle comments. Do not display the full comment in the DataGrid. Instead, display an icon that brings up a comment view/edit popover on click. Visually differentiate rows that have a comment from those that do not.
     - Add the comment field to the Preview page (using the same icon/popover logic instead of displaying the full comment in the grid) and adjust the `POST /api/preview/:id/bulk-update` endpoint to support bulk-updating comments.
     - Add both UI component tests and server-side integration tests.
-- [ ] **5.4 Edit Transactions**: Add an ability to edit committed transactions (adjust person, category and comment).
+- [x] **5.4 Edit Transactions**: Add an ability to edit committed transactions (adjust person, category and comment).
   - **Requirements**:
     - Implement a `PUT /api/transactions/:hash` endpoint to update the `PersonId`, `CategoryId`, and `Comment` for a specific transaction.
     - Update `TransactionsPage.tsx` to use inline edit controls (via DataGrid edit mode) to modify these fields. Do not use a modal.

@@ -153,17 +153,54 @@ router.get('/transactions', (req, res, next) => {
 router.put('/transactions/:hash', (req, res, next) => {
   try {
     const { hash } = req.params;
-    const { comment } = req.body;
+    const { comment, personId, categoryId } = req.body as {
+      comment?: string | null;
+      personId?: number;
+      categoryId?: string;
+    };
 
-    if (comment === undefined) {
+    if (comment === undefined && personId === undefined && categoryId === undefined) {
       res.status(400).json({ error: 'No fields to update' });
       return;
     }
 
     const db = getDb();
+
+    if (personId !== undefined) {
+      const person = db.prepare('SELECT PersonId FROM Person WHERE PersonId = ?').get(personId);
+      if (!person) {
+        res.status(400).json({ error: `Unknown personId: ${personId}` });
+        return;
+      }
+    }
+
+    if (categoryId !== undefined) {
+      if (!(categoryId in CATEGORY_NAMES)) {
+        res.status(400).json({ error: `Unknown categoryId: ${categoryId}` });
+        return;
+      }
+    }
+
+    const setClauses: string[] = [];
+    const params: (string | number | null)[] = [];
+
+    if (comment !== undefined) {
+      setClauses.push('Comment = ?');
+      params.push(comment);
+    }
+    if (personId !== undefined) {
+      setClauses.push('PersonId = ?');
+      params.push(personId);
+    }
+    if (categoryId !== undefined) {
+      setClauses.push('CategoryId = ?');
+      params.push(categoryId);
+    }
+
+    params.push(hash);
     const result = db
-      .prepare('UPDATE "Transaction" SET Comment = ? WHERE Hash = ?')
-      .run(comment, hash);
+      .prepare(`UPDATE "Transaction" SET ${setClauses.join(', ')} WHERE Hash = ?`)
+      .run(...params);
 
     if (result.changes === 0) {
       res.status(404).json({ error: 'Transaction not found' });

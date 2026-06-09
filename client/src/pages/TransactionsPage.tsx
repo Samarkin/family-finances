@@ -22,7 +22,12 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
-import type { GridColDef, GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
+import type {
+  GridColDef,
+  GridPaginationModel,
+  GridSortModel,
+  GridRowModel,
+} from '@mui/x-data-grid';
 
 interface TransactionData {
   id: string;
@@ -203,6 +208,35 @@ export default function TransactionsPage() {
     setCommentTxId(null);
   }, []);
 
+  const processRowUpdate = useCallback(
+    async (newRow: GridRowModel, oldRow: GridRowModel) => {
+      const updates: { personId?: number; categoryId?: string } = {};
+      if (newRow.personId !== oldRow.personId) updates.personId = newRow.personId as number;
+      if (newRow.categoryId !== oldRow.categoryId) updates.categoryId = newRow.categoryId as string;
+
+      if (Object.keys(updates).length === 0) return oldRow;
+
+      const res = await fetch(`/api/transactions/${newRow.id as string}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error((errData as { error?: string }).error || 'Failed to update transaction');
+      }
+
+      await fetchTransactions();
+      return newRow;
+    },
+    [fetchTransactions],
+  );
+
+  const handleProcessRowUpdateError = useCallback((err: Error) => {
+    setError(err.message || 'Failed to update transaction');
+  }, []);
+
   const handleCommentSave = useCallback(async () => {
     if (!commentTxId) return;
     setCommentSaving(true);
@@ -279,13 +313,23 @@ export default function TransactionsPage() {
         field: 'categoryId',
         headerName: 'Category',
         width: 130,
-        valueGetter: (value?: string) => (value ? categories[value]?.name || value : value),
+        editable: true,
+        type: 'singleSelect',
+        valueOptions: Object.entries(categories).map(([id, cat]) => ({
+          value: id,
+          label: cat.name,
+        })),
       },
       {
         field: 'personId',
         headerName: 'Person',
         width: 150,
-        valueGetter: (value?: number) => (value ? persons[value] || value : value),
+        editable: true,
+        type: 'singleSelect',
+        valueOptions: Object.entries(persons).map(([id, name]) => ({
+          value: Number(id),
+          label: name,
+        })),
       },
       {
         field: 'accountId',
@@ -463,6 +507,8 @@ export default function TransactionsPage() {
           pageSizeOptions={[20, 50, 100]}
           disableRowSelectionOnClick
           disableColumnMenu
+          processRowUpdate={processRowUpdate}
+          onProcessRowUpdateError={handleProcessRowUpdateError}
         />
       </Box>
 
