@@ -285,4 +285,30 @@ describe('SummaryPage', () => {
     expect(tooltip).toHaveTextContent('Missing data:');
     expect(tooltip).toHaveTextContent("Savings: Oct '23");
   });
+
+  it('shows year-only title when range spans full calendar year', async () => {
+    const fullYearData = {
+      data: [
+        { month: '2023-01', spendings: [100], spendingCount: 1, incomeCount: 0 },
+        { month: '2023-12', spendings: [200], spendingCount: 1, incomeCount: 0 },
+      ],
+      categories: [],
+      hasPrev: false,
+    };
+    setupMocks(fullYearData, mockAccounts, {
+      data: [
+        { id: 1, filename: 'checking.csv', accountName: 'Checking', range: '2023-01 : 2023-12' },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <SummaryPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Summary (2023)')).toBeInTheDocument();
+    });
+  });
 });

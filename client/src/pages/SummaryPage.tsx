@@ -341,7 +341,14 @@ export default function SummaryPage() {
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
           {averages
-            ? `Summary (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`
+            ? (() => {
+                const [startYear, startMo] = averages.startMonth.split('-');
+                const [endYear, endMo] = averages.endMonth.split('-');
+                const isFullYear = startYear === endYear && startMo === '01' && endMo === '12';
+                return isFullYear
+                  ? `Summary (${startYear})`
+                  : `Summary (${formatMonthShort(averages.startMonth)} - ${formatMonthShort(averages.endMonth)})`;
+              })()
             : 'Summary'}
           {completion && completion.percentage < 100 && (
             <MuiTooltip

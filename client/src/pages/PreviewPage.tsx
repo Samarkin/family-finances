@@ -493,7 +493,19 @@ export default function PreviewPage() {
     setSelectedIds(next);
   };
 
-  if (loading) return <CircularProgress />;
+  if (loading)
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexGrow: 1,
+        }}
+      >
+        <CircularProgress size={60} color="primary" disableShrink />
+      </Box>
+    );
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!data) return <Alert severity="warning">No data found</Alert>;
 
