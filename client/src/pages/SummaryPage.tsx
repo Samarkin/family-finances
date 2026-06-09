@@ -24,6 +24,14 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import type { Account, FileInfo } from '../types';
+import {
+  formatCurrency,
+  formatMonthCompact,
+  formatMonthLong,
+  formatMonthShort,
+  getMonthsBetween,
+} from '../utils/format';
 
 interface Category {
   id: string;
@@ -45,40 +53,12 @@ interface SummaryData {
   hasPrev: boolean;
 }
 
-interface AccountData {
-  id: number;
-  name: string;
-}
-
-interface FileData {
-  id: number;
-  filename: string;
-  accountName: string;
-  range: string;
-}
-
 interface PieDataPoint {
   name: string;
   value: number;
   color: string;
   id: string;
 }
-
-const getMonthsBetween = (start: string, end: string): string[] => {
-  const months: string[] = [];
-  let [year, month] = start.split('-').map(Number);
-  const [endYear, endMonth] = end.split('-').map(Number);
-  if (isNaN(year) || isNaN(month) || isNaN(endYear) || isNaN(endMonth)) return months;
-  while (year < endYear || (year === endYear && month <= endMonth)) {
-    months.push(`${year}-${month.toString().padStart(2, '0')}`);
-    month++;
-    if (month > 12) {
-      month = 1;
-      year++;
-    }
-  }
-  return months;
-};
 
 const monthsToRanges = (months: string[]): string => {
   if (months.length === 0) return '';
@@ -113,33 +93,6 @@ const monthsToRanges = (months: string[]): string => {
       : `${formatMonthCompact(start)} - ${formatMonthCompact(prev)}`,
   );
   return ranges.join(', ');
-};
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-};
-
-const parseMonth = (monthStr: string) => {
-  const [year, month] = monthStr.split('-');
-  return new Date(parseInt(year, 10), parseInt(month, 10) - 1);
-};
-
-const formatMonthShort = (monthStr: string) =>
-  new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(
-    parseMonth(monthStr),
-  );
-
-const formatMonthLong = (monthStr: string) =>
-  new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(parseMonth(monthStr));
-
-const formatMonthCompact = (monthStr: string) => {
-  const date = parseMonth(monthStr);
-  const month = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date);
-  const year = new Intl.DateTimeFormat('en-US', { year: '2-digit' }).format(date);
-  return `${month} '${year}`;
 };
 
 const CustomTooltip = ({
@@ -214,8 +167,8 @@ export default function SummaryPage() {
   const [error, setError] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [offset, setOffset] = useState(0);
-  const [accounts, setAccounts] = useState<AccountData[]>([]);
-  const [files, setFiles] = useState<FileData[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [files, setFiles] = useState<FileInfo[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -223,8 +176,8 @@ export default function SummaryPage() {
       const [accRes, filesRes] = await Promise.all([fetch('/api/accounts'), fetch('/api/files')]);
       if (accRes.ok && filesRes.ok) {
         const [accData, filesData] = await Promise.all([accRes.json(), filesRes.json()]);
-        setAccounts(accData as AccountData[]);
-        setFiles((filesData as { data: FileData[] }).data);
+        setAccounts(accData as Account[]);
+        setFiles((filesData as { data: FileInfo[] }).data);
       }
     };
     void fetchCoverageData();
@@ -334,10 +287,12 @@ export default function SummaryPage() {
     const displayedMonths = summaryData.data.map((d) => d.month);
     const coverage: Record<string, Set<string>> = {};
     files.forEach((file) => {
+      if (!file.accountName) return;
+      const accountName = file.accountName;
       const [start, end] = file.range.split(' : ');
       getMonthsBetween(start, end).forEach((m) => {
-        if (!coverage[file.accountName]) coverage[file.accountName] = new Set();
-        coverage[file.accountName].add(m);
+        if (!coverage[accountName]) coverage[accountName] = new Set();
+        coverage[accountName].add(m);
       });
     });
     let totalCovered = 0;

@@ -60,3 +60,4 @@ Refer to `docs/tasks.md` for the current roadmap and pending tasks.
   npm run test --prefix client -- --testPathPatterns SummaryPage
   npm run test --prefix server -- --testPathPatterns transactions
   ```
+- **Typecheck** via `npm run build:client` and/or `npm run build:server`, not `npx tsc` directly.

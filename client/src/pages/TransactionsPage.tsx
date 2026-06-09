@@ -9,17 +9,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Popover,
-  TextField,
-  Button,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
-import {
-  CloudUpload as UploadIcon,
-  ChatBubble as ChatBubbleIcon,
-  ChatBubbleOutlineOutlined as ChatBubbleOutlineIcon,
-} from '@mui/icons-material';
+import { CloudUpload as UploadIcon } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DataGrid } from '@mui/x-data-grid';
 import type {
@@ -28,6 +19,9 @@ import type {
   GridSortModel,
   GridRowModel,
 } from '@mui/x-data-grid';
+import type { CategoryMap } from '../types';
+import { formatCurrency, formatMonthLong, formatMonthShort } from '../utils/format';
+import { CommentButton, CommentPopover, useCommentEditor } from '../components/CommentPopover';
 
 interface TransactionData {
   id: string;
@@ -52,9 +46,7 @@ export default function TransactionsPage() {
   const [data, setData] = useState<TransactionData[]>([]);
   const [persons, setPersons] = useState<Record<number, string>>({});
   const [accounts, setAccounts] = useState<Record<number, string>>({});
-  const [categories, setCategories] = useState<Record<string, { name: string; isIncome: boolean }>>(
-    {},
-  );
+  const [categories, setCategories] = useState<CategoryMap>({});
   const [totalCount, setTotalCount] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0);
@@ -68,11 +60,6 @@ export default function TransactionsPage() {
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
 
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-
-  const [commentAnchor, setCommentAnchor] = useState<HTMLElement | null>(null);
-  const [commentTxId, setCommentTxId] = useState<string | null>(null);
-  const [commentText, setCommentText] = useState('');
-  const [commentSaving, setCommentSaving] = useState(false);
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -193,20 +180,19 @@ export default function TransactionsPage() {
     [handleUpload],
   );
 
-  const handleCommentOpen = useCallback(
-    (e: React.MouseEvent<HTMLElement>, txId: string, currentComment: string | null) => {
-      e.stopPropagation();
-      setCommentTxId(txId);
-      setCommentText(currentComment ?? '');
-      setCommentAnchor(e.currentTarget);
-    },
-    [],
-  );
-
-  const handleCommentClose = useCallback(() => {
-    setCommentAnchor(null);
-    setCommentTxId(null);
+  const saveComment = useCallback(async (txId: string, text: string) => {
+    const res = await fetch(`/api/transactions/${txId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment: text || null }),
+    });
+    if (res.ok) {
+      setData((prev) => prev.map((tx) => (tx.id === txId ? { ...tx, comment: text || null } : tx)));
+    }
   }, []);
+
+  const comment = useCommentEditor<string>(saveComment);
+  const { open: openComment } = comment;
 
   const processRowUpdate = useCallback(
     async (newRow: GridRowModel, oldRow: GridRowModel) => {
@@ -237,54 +223,10 @@ export default function TransactionsPage() {
     setError(err.message || 'Failed to update transaction');
   }, []);
 
-  const handleCommentSave = useCallback(async () => {
-    if (!commentTxId) return;
-    setCommentSaving(true);
-    try {
-      const res = await fetch(`/api/transactions/${commentTxId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ comment: commentText || null }),
-      });
-      if (res.ok) {
-        setData((prev) =>
-          prev.map((tx) => (tx.id === commentTxId ? { ...tx, comment: commentText || null } : tx)),
-        );
-        handleCommentClose();
-      }
-    } catch (err) {
-      console.error('Failed to save comment:', err);
-    } finally {
-      setCommentSaving(false);
-    }
-  }, [commentTxId, commentText, handleCommentClose]);
-
-  const currencyFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }),
-    [],
-  );
-
-  const monthFormatters = useMemo(
-    () => ({
-      long: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }),
-      short: new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }),
-    }),
-    [],
-  );
-
-  const formatMonth = useCallback(
-    (monthStr: string, short = false) => {
-      if (monthStr === 'All Time') return monthStr;
-      const [year, month] = monthStr.split('-');
-      const date = new Date(parseInt(year), parseInt(month) - 1);
-      return monthFormatters[short ? 'short' : 'long'].format(date);
-    },
-    [monthFormatters],
-  );
+  const formatMonth = useCallback((monthStr: string, short = false) => {
+    if (monthStr === 'All Time') return monthStr;
+    return short ? formatMonthShort(monthStr) : formatMonthLong(monthStr);
+  }, []);
 
   const columns: GridColDef[] = useMemo(
     () => [
@@ -305,8 +247,9 @@ export default function TransactionsPage() {
           const category = categories[categoryId];
           const isIncome = category?.isIncome;
           const isAnomaly = isIncome ? amount > 0 : amount < 0;
-          const formattedAmount = currencyFormatter.format(amount);
-          return <span style={{ color: isAnomaly ? 'red' : 'inherit' }}>{formattedAmount}</span>;
+          return (
+            <span style={{ color: isAnomaly ? 'red' : 'inherit' }}>{formatCurrency(amount)}</span>
+          );
         },
       },
       {
@@ -343,26 +286,17 @@ export default function TransactionsPage() {
         width: 40,
         sortable: false,
         renderCell: (params) => {
-          const comment = params.value as string | null;
+          const value = params.value as string | null;
           return (
-            <Tooltip title={comment ?? <em>No comment</em>}>
-              <IconButton
-                size="small"
-                aria-label="comment"
-                onClick={(e) => handleCommentOpen(e, params.row.id as string, comment)}
-              >
-                {comment ? (
-                  <ChatBubbleIcon fontSize="small" color="primary" />
-                ) : (
-                  <ChatBubbleOutlineIcon fontSize="small" color="disabled" />
-                )}
-              </IconButton>
-            </Tooltip>
+            <CommentButton
+              comment={value}
+              onClick={(e) => openComment(e, params.row.id as string, value)}
+            />
           );
         },
       },
     ],
-    [persons, accounts, categories, currencyFormatter, handleCommentOpen],
+    [persons, accounts, categories, openComment],
   );
 
   const dropdownMonths = useMemo(() => {
@@ -430,9 +364,8 @@ export default function TransactionsPage() {
             })()}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Total: {totalCount} | Spent: {currencyFormatter.format(totalSpent)} | Earned:{' '}
-            {currencyFormatter.format(totalEarned)} | Payments:{' '}
-            {currencyFormatter.format(netPayments)}
+            Total: {totalCount} | Spent: {formatCurrency(totalSpent)} | Earned:{' '}
+            {formatCurrency(totalEarned)} | Payments: {formatCurrency(netPayments)}
           </Typography>
         </Box>
 
@@ -512,39 +445,14 @@ export default function TransactionsPage() {
         />
       </Box>
 
-      <Popover
-        open={!!commentAnchor}
-        anchorEl={commentAnchor}
-        onClose={handleCommentClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Box sx={{ p: 2, width: 300 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Comment
-          </Typography>
-          <TextField
-            multiline
-            rows={3}
-            fullWidth
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            autoFocus
-          />
-          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            <Button size="small" onClick={handleCommentClose}>
-              Cancel
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleCommentSave}
-              disabled={commentSaving}
-            >
-              Save
-            </Button>
-          </Box>
-        </Box>
-      </Popover>
+      <CommentPopover
+        anchorEl={comment.anchorEl}
+        value={comment.text}
+        saving={comment.saving}
+        onChange={comment.setText}
+        onClose={comment.close}
+        onSave={comment.save}
+      />
     </Box>
   );
 }

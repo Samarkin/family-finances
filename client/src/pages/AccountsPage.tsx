@@ -14,37 +14,8 @@ import {
   Tooltip,
 } from '@mui/material';
 import { CheckCircle, Pending } from '@mui/icons-material';
-
-interface Account {
-  id: number;
-  name: string;
-}
-
-interface FileData {
-  id: number;
-  filename: string;
-  accountName: string;
-  range: string;
-}
-
-const getMonthsBetween = (start: string, end: string): string[] => {
-  if (!start || !end || start === 'null' || end === 'null') return [];
-  const months = [];
-  let [year, month] = start.split('-').map(Number);
-  const [endYear, endMonth] = end.split('-').map(Number);
-
-  if (isNaN(year) || isNaN(month) || isNaN(endYear) || isNaN(endMonth)) return [];
-
-  while (year < endYear || (year === endYear && month <= endMonth)) {
-    months.push(`${year}-${month.toString().padStart(2, '0')}`);
-    month++;
-    if (month > 12) {
-      month = 1;
-      year++;
-    }
-  }
-  return months;
-};
+import type { Account, FileInfo } from '../types';
+import { getMonthsBetween } from '../utils/format';
 
 const formatMonth = (monthStr: string) => {
   const [year, month] = monthStr.split('-');
@@ -56,8 +27,8 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [committedFiles, setCommittedFiles] = useState<FileData[]>([]);
-  const [previewFiles, setPreviewFiles] = useState<FileData[]>([]);
+  const [committedFiles, setCommittedFiles] = useState<FileInfo[]>([]);
+  const [previewFiles, setPreviewFiles] = useState<FileInfo[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -100,25 +71,28 @@ export default function AccountsPage() {
 
     // Process committed files
     committedFiles.forEach((file) => {
+      if (!file.accountName) return;
+      const accountName = file.accountName;
       const [start, end] = file.range.split(' : ');
       const months = getMonthsBetween(start, end);
       months.forEach((m) => {
         allMonthsSet.add(m);
-        if (!coverage[file.accountName]) coverage[file.accountName] = {};
-        coverage[file.accountName][m] = { type: 'committed', file: file.filename };
+        if (!coverage[accountName]) coverage[accountName] = {};
+        coverage[accountName][m] = { type: 'committed', file: file.filename };
       });
     });
 
     // Process preview files (committed takes precedence)
     previewFiles.forEach((file) => {
       if (!file.accountName || !file.range) return;
+      const accountName = file.accountName;
       const [start, end] = file.range.split(' : ');
       const months = getMonthsBetween(start, end);
       months.forEach((m) => {
         allMonthsSet.add(m);
-        if (!coverage[file.accountName]) coverage[file.accountName] = {};
-        if (!coverage[file.accountName][m]) {
-          coverage[file.accountName][m] = { type: 'preview', file: file.filename };
+        if (!coverage[accountName]) coverage[accountName] = {};
+        if (!coverage[accountName][m]) {
+          coverage[accountName][m] = { type: 'preview', file: file.filename };
         }
       });
     });

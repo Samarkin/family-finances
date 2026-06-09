@@ -21,14 +21,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { Link } from 'react-router-dom';
-
-interface FileInfo {
-  id: number;
-  filename: string;
-  accountName: string | null;
-  range: string;
-  isStaged?: boolean;
-}
+import type { FileInfo } from '../types';
 
 export default function FilesPage() {
   const [files, setFiles] = useState<FileInfo[]>([]);

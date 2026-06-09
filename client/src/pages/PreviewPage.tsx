@@ -29,20 +29,11 @@ import {
   TableSortLabel,
   Snackbar,
   IconButton,
-  Popover,
-  Tooltip,
 } from '@mui/material';
-import {
-  Close as CloseIcon,
-  ChatBubble as ChatBubbleIcon,
-  ChatBubbleOutlineOutlined as ChatBubbleOutlineIcon,
-} from '@mui/icons-material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import type { SelectChangeEvent } from '@mui/material';
-
-interface Account {
-  id: number;
-  name: string;
-}
+import type { Account, CategoryMap } from '../types';
+import { CommentButton, CommentPopover, useCommentEditor } from '../components/CommentPopover';
 
 interface StagedTransaction {
   id: number;
@@ -70,7 +61,7 @@ interface PreviewData {
   duplicateCount: number;
   accountId: number | null;
   sign: boolean;
-  categories: Record<string, { name: string; isIncome: boolean }>;
+  categories: CategoryMap;
   persons: Record<number, string>;
 }
 
@@ -105,11 +96,6 @@ export default function PreviewPage() {
   const [personModalError, setPersonModalError] = useState<string | null>(null);
 
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
-
-  const [commentAnchor, setCommentAnchor] = useState<HTMLElement | null>(null);
-  const [commentTxId, setCommentTxId] = useState<number | null>(null);
-  const [commentText, setCommentText] = useState('');
-  const [commentSaving, setCommentSaving] = useState(false);
 
   const weekdayFormatter = useMemo(() => new Intl.DateTimeFormat('en-US', { weekday: 'long' }), []);
 
@@ -403,30 +389,12 @@ export default function PreviewPage() {
     }
   };
 
-  const handleCommentOpen = (
-    e: React.MouseEvent<HTMLElement>,
-    txId: number,
-    currentComment: string | null | undefined,
-  ) => {
-    e.stopPropagation();
-    setCommentTxId(txId);
-    setCommentText(currentComment ?? '');
-    setCommentAnchor(e.currentTarget);
-  };
-
-  const handleCommentClose = () => {
-    setCommentAnchor(null);
-    setCommentTxId(null);
-  };
-
-  const handleCommentSave = async () => {
-    if (commentTxId === null) return;
-    setCommentSaving(true);
-    try {
+  const saveComment = useCallback(
+    async (txId: number, text: string) => {
       const response = await fetch(`/api/preview/${id}/bulk-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [commentTxId], comment: commentText || null }),
+        body: JSON.stringify({ ids: [txId], comment: text || null }),
       });
       if (response.ok) {
         setData((prev) => {
@@ -434,18 +402,16 @@ export default function PreviewPage() {
           return {
             ...prev,
             transactions: prev.transactions.map((tx) =>
-              tx.id === commentTxId ? { ...tx, comment: commentText || null } : tx,
+              tx.id === txId ? { ...tx, comment: text || null } : tx,
             ),
           };
         });
-        handleCommentClose();
       }
-    } catch (err) {
-      console.error('Failed to save comment:', err);
-    } finally {
-      setCommentSaving(false);
-    }
-  };
+    },
+    [id],
+  );
+
+  const comment = useCommentEditor<number>(saveComment);
 
   const handleRequestSort = (property: keyof StagedTransaction) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -765,19 +731,10 @@ export default function PreviewPage() {
                 </TableCell>
                 {hasRawCategory && <TableCell>{tx.rawCategory || '-'}</TableCell>}
                 <TableCell padding="checkbox">
-                  <Tooltip title={tx.comment ?? <em>No comment</em>}>
-                    <IconButton
-                      size="small"
-                      aria-label="comment"
-                      onClick={(e) => handleCommentOpen(e, tx.id, tx.comment)}
-                    >
-                      {tx.comment ? (
-                        <ChatBubbleIcon fontSize="small" color="primary" />
-                      ) : (
-                        <ChatBubbleOutlineIcon fontSize="small" color="disabled" />
-                      )}
-                    </IconButton>
-                  </Tooltip>
+                  <CommentButton
+                    comment={tx.comment}
+                    onClick={(e) => comment.open(e, tx.id, tx.comment)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -909,39 +866,14 @@ export default function PreviewPage() {
         }
       />
 
-      <Popover
-        open={!!commentAnchor}
-        anchorEl={commentAnchor}
-        onClose={handleCommentClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Box sx={{ p: 2, width: 300 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Comment
-          </Typography>
-          <TextField
-            multiline
-            rows={3}
-            fullWidth
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            autoFocus
-          />
-          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            <Button size="small" onClick={handleCommentClose}>
-              Cancel
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleCommentSave}
-              disabled={commentSaving}
-            >
-              Save
-            </Button>
-          </Box>
-        </Box>
-      </Popover>
+      <CommentPopover
+        anchorEl={comment.anchorEl}
+        value={comment.text}
+        saving={comment.saving}
+        onChange={comment.setText}
+        onClose={comment.close}
+        onSave={comment.save}
+      />
     </Box>
   );
 }
