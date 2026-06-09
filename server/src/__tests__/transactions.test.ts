@@ -78,6 +78,37 @@ describe('GET /api/transactions', () => {
     );
   });
 
+  it('should filter by category', async () => {
+    const response = await request(app).get('/api/transactions?count=10&category=food');
+    expect(response.status).toBe(200);
+
+    expect(response.body.totalCount).toBe(1);
+    expect(response.body.totalSpent).toBe(50);
+    expect(response.body.totalEarned).toBe(0);
+    expect(response.body.data.length).toBe(1);
+    expect(response.body.data[0].id).toBe('hash1');
+  });
+
+  it('should filter by category and month combined', async () => {
+    const response = await request(app).get(
+      '/api/transactions?count=10&month=2024-05&category=salary',
+    );
+    expect(response.status).toBe(200);
+
+    expect(response.body.totalCount).toBe(1);
+    expect(response.body.totalEarned).toBe(1000);
+    expect(response.body.data.length).toBe(1);
+    expect(response.body.data[0].id).toBe('hash2');
+  });
+
+  it('should return empty result for category with no matching transactions', async () => {
+    const response = await request(app).get('/api/transactions?count=10&category=housing');
+    expect(response.status).toBe(200);
+
+    expect(response.body.totalCount).toBe(0);
+    expect(response.body.data.length).toBe(0);
+  });
+
   it('should filter by personId', async () => {
     const response = await request(app).get('/api/transactions?count=10&personId=2');
     expect(response.status).toBe(200);

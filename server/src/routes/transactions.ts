@@ -18,7 +18,7 @@ router.get('/transactions/months', (_req, res, next) => {
 
 router.get('/transactions', (req, res, next) => {
   try {
-    const { month, personId, offset = '0', count, sort } = req.query;
+    const { month, personId, category, offset = '0', count, sort } = req.query;
 
     if (!count) {
       res.status(400).json({ error: 'Count parameter is mandatory' });
@@ -45,6 +45,11 @@ router.get('/transactions', (req, res, next) => {
     if (personId) {
       whereClause += ' AND t.PersonId = ?';
       params.push(Number(personId));
+    }
+
+    if (category) {
+      whereClause += ' AND t.CategoryId = ?';
+      params.push(category as string);
     }
 
     // Sorting logic

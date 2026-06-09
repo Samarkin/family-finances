@@ -42,6 +42,7 @@ export default function TransactionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const monthParam = searchParams.get('month') || 'All Time';
+  const categoryParam = searchParams.get('category') || 'all';
 
   const [data, setData] = useState<TransactionData[]>([]);
   const [persons, setPersons] = useState<Record<number, string>>({});
@@ -79,6 +80,10 @@ export default function TransactionsPage() {
         params.set('month', monthParam);
       }
 
+      if (categoryParam !== 'all') {
+        params.set('category', categoryParam);
+      }
+
       if (sortModel.length > 0) {
         const { field, sort } = sortModel[0];
         if (sort) {
@@ -106,7 +111,7 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [paginationModel.page, paginationModel.pageSize, monthParam, sortModel]);
+  }, [paginationModel.page, paginationModel.pageSize, monthParam, categoryParam, sortModel]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -367,9 +372,18 @@ export default function TransactionsPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 2 }}>
         <Box>
           <Typography variant="h6">
-            {monthParam === 'All Time'
-              ? 'All Transactions'
-              : `Transactions: ${formatMonth(monthParam)}`}
+            {(() => {
+              const catName =
+                categoryParam !== 'all' ? (categories[categoryParam]?.name ?? categoryParam) : null;
+              if (catName) {
+                return monthParam === 'All Time'
+                  ? `${catName}: All Time`
+                  : `${catName}: ${formatMonth(monthParam)}`;
+              }
+              return monthParam === 'All Time'
+                ? 'All Transactions'
+                : `Transactions: ${formatMonth(monthParam)}`;
+            })()}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Total: {totalCount} | Spent: {currencyFormatter.format(totalSpent)} | Earned:{' '}
@@ -378,29 +392,56 @@ export default function TransactionsPage() {
           </Typography>
         </Box>
 
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Month</InputLabel>
-          <Select
-            value={monthParam}
-            label="Month"
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === 'All Time') {
-                searchParams.delete('month');
-              } else {
-                searchParams.set('month', val);
-              }
-              setSearchParams(searchParams);
-              setPaginationModel((prev) => ({ ...prev, page: 0 })); // reset page on filter change
-            }}
-          >
-            {dropdownMonths.map((m) => (
-              <MenuItem key={m} value={m}>
-                {formatMonth(m, true)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={categoryParam}
+              label="Category"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'all') {
+                  searchParams.delete('category');
+                } else {
+                  searchParams.set('category', val);
+                }
+                setSearchParams(searchParams);
+                setPaginationModel((prev) => ({ ...prev, page: 0 }));
+              }}
+            >
+              <MenuItem value="all">All Categories</MenuItem>
+              {Object.entries(categories).map(([id, cat]) => (
+                <MenuItem key={id} value={id}>
+                  {cat.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Month</InputLabel>
+            <Select
+              value={monthParam}
+              label="Month"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'All Time') {
+                  searchParams.delete('month');
+                } else {
+                  searchParams.set('month', val);
+                }
+                setSearchParams(searchParams);
+                setPaginationModel((prev) => ({ ...prev, page: 0 }));
+              }}
+            >
+              {dropdownMonths.map((m) => (
+                <MenuItem key={m} value={m}>
+                  {formatMonth(m, true)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       <Box sx={{ flexGrow: 1, width: '100%', minHeight: 0 }}>

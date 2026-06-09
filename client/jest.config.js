@@ -6,6 +6,7 @@ export default {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '^recharts$': '<rootDir>/__mocks__/recharts.ts',
   },
   transform: {
     '^.+\\.tsx?$': [

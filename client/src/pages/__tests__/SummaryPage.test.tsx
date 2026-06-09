@@ -2,22 +2,11 @@ import { expect, describe, it, beforeEach, jest } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/jest-globals';
 import SummaryPage from '../SummaryPage';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 // Mock fetch
 const mockFetch = jest.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>();
 globalThis.fetch = mockFetch as unknown as typeof fetch;
-
-// Mock ResponsiveContainer to render its children
-jest.mock('recharts', () => {
-  const OriginalModule = jest.requireActual('recharts') as Record<string, unknown>;
-  return {
-    ...OriginalModule,
-    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-      <div style={{ width: '800px', height: '400px' }}>{children}</div>
-    ),
-  };
-});
 
 const mockSummaryData = {
   data: [
@@ -156,6 +145,58 @@ describe('SummaryPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Failed to fetch summary data')).toBeInTheDocument();
+    });
+  });
+
+  it('navigates with category filter when a spending pie slice is clicked', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockSummaryData,
+    } as Response);
+
+    const router = createMemoryRouter([{ path: '/', element: <SummaryPage /> }], {
+      initialEntries: ['/'],
+    });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Summary (Sep 2023 - Oct 2023)')).toBeInTheDocument();
+    });
+
+    // cat-1 is a spending category (not income) so its slice appears in the Spendings pie
+    const slice = screen.getByTestId('pie-slice-cat-1');
+    fireEvent.click(slice);
+
+    await waitFor(() => {
+      expect(router.state.location.pathname + router.state.location.search).toBe(
+        '/transactions?category=cat-1',
+      );
+    });
+  });
+
+  it('navigates with month filter when an area is clicked', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockSummaryData,
+    } as Response);
+
+    const router = createMemoryRouter([{ path: '/', element: <SummaryPage /> }], {
+      initialEntries: ['/'],
+    });
+    render(<RouterProvider router={router} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Summary (Sep 2023 - Oct 2023)')).toBeInTheDocument();
+    });
+
+    // The ComposedChart mock fires onClick({ activeLabel: '2023-09' }) when clicked
+    const chart = screen.getByTestId('mock-composed-chart');
+    fireEvent.click(chart);
+
+    await waitFor(() => {
+      expect(router.state.location.pathname + router.state.location.search).toBe(
+        '/transactions?month=2023-09',
+      );
     });
   });
 });

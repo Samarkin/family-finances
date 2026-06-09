@@ -132,13 +132,113 @@ describe('TransactionsPage', () => {
       expect(screen.getByText('All Transactions')).toBeInTheDocument();
     });
 
-    // Using fireEvent to interact with select
+    // Month dropdown is the second combobox (category is first)
     const selects = screen.getAllByRole('combobox');
-    fireEvent.mouseDown(selects[0]);
+    fireEvent.mouseDown(selects[1]);
 
     await waitFor(() => {
       expect(screen.getByRole('option', { name: 'Oct 2023' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Nov 2023' })).toBeInTheDocument();
+    });
+  });
+
+  it('renders category dropdown with all categories option', async () => {
+    mockFetch.mockImplementation((url) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/api/transactions/months')) {
+        return Promise.resolve({ ok: true, json: async () => mockMonthsData } as Response);
+      }
+      if (urlStr.includes('/api/transactions')) {
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsData } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter>
+        <TransactionsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('All Transactions')).toBeInTheDocument();
+    });
+
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.mouseDown(selects[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'All Categories' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Food' })).toBeInTheDocument();
+    });
+  });
+
+  it('shows category-only title when category param is set', async () => {
+    mockFetch.mockImplementation((url) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/api/transactions/months')) {
+        return Promise.resolve({ ok: true, json: async () => mockMonthsData } as Response);
+      }
+      if (urlStr.includes('/api/transactions')) {
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsData } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/transactions?category=cat-1']}>
+        <TransactionsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Food: All Time')).toBeInTheDocument();
+    });
+  });
+
+  it('shows category + month title when both params are set', async () => {
+    mockFetch.mockImplementation((url) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/api/transactions/months')) {
+        return Promise.resolve({ ok: true, json: async () => mockMonthsData } as Response);
+      }
+      if (urlStr.includes('/api/transactions')) {
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsData } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/transactions?month=2023-10&category=cat-1']}>
+        <TransactionsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Food: October 2023')).toBeInTheDocument();
+    });
+  });
+
+  it('passes category param to the transactions API', async () => {
+    mockFetch.mockImplementation((url) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/api/transactions/months')) {
+        return Promise.resolve({ ok: true, json: async () => mockMonthsData } as Response);
+      }
+      if (urlStr.includes('/api/transactions')) {
+        return Promise.resolve({ ok: true, json: async () => mockTransactionsData } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/transactions?category=cat-1']}>
+        <TransactionsPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('category=cat-1'));
     });
   });
 });

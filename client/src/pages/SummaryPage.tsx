@@ -108,12 +108,12 @@ const CustomTooltip = ({
 function SummaryPieChart({
   title,
   data,
-  onPieClick,
+  onSliceClick,
   footer,
 }: {
   title: string;
   data: PieDataPoint[];
-  onPieClick: () => void;
+  onSliceClick: (categoryId: string) => void;
   footer: React.ReactNode;
 }) {
   return (
@@ -129,7 +129,7 @@ function SummaryPieChart({
             cy="50%"
             outerRadius="95%"
             dataKey="value"
-            onClick={onPieClick}
+            onClick={(data) => onSliceClick((data as unknown as PieDataPoint).id)}
             style={{ cursor: 'pointer' }}
           >
             {data.map((entry, index) => (
@@ -323,7 +323,7 @@ export default function SummaryPage() {
               <SummaryPieChart
                 title="Spendings"
                 data={pieAvgSpendingsData}
-                onPieClick={() => navigate('/transactions')}
+                onSliceClick={(catId) => navigate(`/transactions?category=${catId}`)}
                 footer={
                   <>
                     Monthly: {averages.spendingTransactions.toFixed(1)} transactions |{' '}
@@ -339,7 +339,7 @@ export default function SummaryPage() {
               <SummaryPieChart
                 title="Income"
                 data={pieAvgIncomeData}
-                onPieClick={() => navigate('/transactions')}
+                onSliceClick={(catId) => navigate(`/transactions?category=${catId}`)}
                 footer={
                   <>
                     Monthly: {averages.incomeTransactions.toFixed(1)} transactions |{' '}
@@ -363,6 +363,11 @@ export default function SummaryPage() {
               <ComposedChart
                 data={areaChartData}
                 margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                onClick={(chartData: unknown) => {
+                  const label = (chartData as { activeLabel?: string })?.activeLabel;
+                  if (label) navigate(`/transactions?month=${label}`);
+                }}
+                style={{ cursor: 'pointer' }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tickFormatter={formatMonthCompact} />
