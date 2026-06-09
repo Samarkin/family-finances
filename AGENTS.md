@@ -51,3 +51,12 @@ Refer to `docs/tasks.md` for the current roadmap and pending tasks.
    - Add `dist` script.
    - Update README.md.
    ```
+
+## Tooling Notes
+
+- **Parse JSON** with `jq`, not `python3 -m json.tool` or other alternatives.
+- **Run a subset of tests** via the root npm scripts, not `npx jest` directly. Examples:
+  ```
+  npm run test --prefix client -- --testPathPatterns SummaryPage
+  npm run test --prefix server -- --testPathPatterns transactions
+  ```
