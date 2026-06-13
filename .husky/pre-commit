@@ -1,1 +1,1 @@
-npm run format-check && npm run lint && npm test
+npm run format-check && npm run lint && npm run build:client && npm run build:server && npm test
