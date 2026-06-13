@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Typography,
   Box,
@@ -12,6 +12,7 @@ import {
   Button,
   Chip,
   IconButton,
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,14 +21,33 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import { Link } from 'react-router-dom';
+import { CloudUpload as UploadIcon } from '@mui/icons-material';
+import { Link, useNavigate } from 'react-router-dom';
 import type { FileInfo } from '../types';
+import { DragAndDropBox, type DragAndDropHandle } from '../components/DragAndDropBox';
+import { uploadTransactionsCsv } from '../utils/upload';
 
 export default function FilesPage() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [stagedFiles, setStagedFiles] = useState<FileInfo[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<FileInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const dropRef = useRef<DragAndDropHandle>(null);
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      setError(null);
+      try {
+        const fileStageId = await uploadTransactionsCsv(file);
+        navigate(`/preview/${fileStageId}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      }
+    },
+    [navigate],
+  );
 
   const fetchFiles = useCallback(async () => {
     try {
@@ -81,10 +101,29 @@ export default function FilesPage() {
   const allFiles = [...stagedFiles, ...files];
 
   return (
-    <Box>
+    <DragAndDropBox ref={dropRef} onFile={handleFile} overlayLabel="Drop a CSV file to upload">
       <Typography variant="h4" gutterBottom>
         Files
       </Typography>
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Count: {files.length} committed | {stagedFiles.length} in review
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<UploadIcon />}
+          onClick={() => dropRef.current?.openFilePicker()}
+        >
+          Upload
+        </Button>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       <TableContainer component={Paper}>
         <Table>
@@ -158,7 +197,7 @@ export default function FilesPage() {
           <DialogContentText>
             Are you sure you want to delete &quot;{fileToDelete?.filename}&quot;?
             {fileToDelete?.isStaged
-              ? ' This will discard all staged transactions for this file.'
+              ? ' This will discard all in-review transactions for this file.'
               : ' This will delete all transactions associated with this file from the database.'}
           </DialogContentText>
         </DialogContent>
@@ -169,6 +208,6 @@ export default function FilesPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </DragAndDropBox>
   );
 }

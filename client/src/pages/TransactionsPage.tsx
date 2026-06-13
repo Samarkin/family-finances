@@ -1,10 +1,9 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Box,
   Typography,
-  Paper,
-  CircularProgress,
   Alert,
+  Button,
   FormControl,
   InputLabel,
   Select,
@@ -22,6 +21,8 @@ import type {
 import type { CategoryMap } from '../types';
 import { formatCurrency, formatMonthLong, formatMonthShort } from '../utils/format';
 import { CommentButton, CommentPopover, useCommentEditor } from '../components/CommentPopover';
+import { DragAndDropBox, type DragAndDropHandle } from '../components/DragAndDropBox';
+import { uploadTransactionsCsv } from '../utils/upload';
 
 interface TransactionData {
   id: string;
@@ -35,9 +36,9 @@ interface TransactionData {
 }
 
 export default function TransactionsPage() {
-  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const dropRef = useRef<DragAndDropHandle>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const monthParam = searchParams.get('month') || 'All Time';
@@ -127,57 +128,17 @@ export default function TransactionsPage() {
     void fetchMonths();
   }, []);
 
-  const handleUpload = useCallback(
+  const handleFile = useCallback(
     async (file: File) => {
-      setIsUploading(true);
       setError(null);
-
-      const formData = new FormData();
-      formData.append('file', file);
-
       try {
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || 'Upload failed');
-        }
-
-        const { fileStageId } = await response.json();
+        const fileStageId = await uploadTransactionsCsv(file);
         navigate(`/preview/${fileStageId}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setIsUploading(false);
       }
     },
     [navigate],
-  );
-
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const file = e.dataTransfer.files[0];
-      if (file && file.type === 'text/csv') {
-        handleUpload(file);
-      } else {
-        setError('Please upload a CSV file.');
-      }
-    },
-    [handleUpload],
-  );
-
-  const onFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        handleUpload(file);
-      }
-    },
-    [handleUpload],
   );
 
   const saveComment = useCallback(async (txId: string, text: string) => {
@@ -308,38 +269,15 @@ export default function TransactionsPage() {
   }, [availableMonths, monthParam]);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <DragAndDropBox
+      ref={dropRef}
+      onFile={handleFile}
+      overlayLabel="Drop a CSV file to upload"
+      sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+    >
       <Typography variant="h4" gutterBottom>
         Transactions
       </Typography>
-
-      <Paper
-        variant="outlined"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={onDrop}
-        sx={{
-          p: 3,
-          mb: 3,
-          textAlign: 'center',
-          backgroundColor: '#fafafa',
-          borderStyle: 'dashed',
-          cursor: 'pointer',
-          '&:hover': { backgroundColor: '#f0f0f0' },
-        }}
-        onClick={() => document.getElementById('file-input')?.click()}
-      >
-        <input type="file" id="file-input" accept=".csv" hidden onChange={onFileChange} />
-        <UploadIcon sx={{ fontSize: 32, color: 'text.secondary', mb: 1 }} />
-        <Typography variant="h6">Drag & drop a CSV file here or click to browse</Typography>
-        {isUploading && (
-          <Box sx={{ mt: 1 }}>
-            <CircularProgress size={20} sx={{ mr: 1 }} />
-            <Typography variant="body2" component="span">
-              Uploading...
-            </Typography>
-          </Box>
-        )}
-      </Paper>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
@@ -369,7 +307,15 @@ export default function TransactionsPage() {
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'stretch' }}>
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            onClick={() => dropRef.current?.openFilePicker()}
+          >
+            Upload
+          </Button>
+
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <InputLabel>Category</InputLabel>
             <Select
@@ -453,6 +399,6 @@ export default function TransactionsPage() {
         onClose={comment.close}
         onSave={comment.save}
       />
-    </Box>
+    </DragAndDropBox>
   );
 }

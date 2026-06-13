@@ -57,6 +57,38 @@ describe('FilesPage', () => {
     expect(screen.getByText('2023-03 : 2023-03')).toBeInTheDocument();
     expect(screen.getByText('Committed')).toBeInTheDocument();
     expect(screen.getByText('In Review')).toBeInTheDocument();
+    expect(screen.getByText(/Count: 1 committed \| 1 in review/)).toBeInTheDocument();
+  });
+
+  it('uploads a CSV via the Upload button and navigates to preview', async () => {
+    mockFetch.mockImplementation((url, options) => {
+      if (url === '/api/files' || url === '/api/preview-files') {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [] }) } as Response);
+      }
+      if (url === '/api/upload' && options?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: async () => ({ fileStageId: 99 }) } as Response);
+      }
+      return Promise.reject(new Error(`Unknown URL: ${url}`));
+    });
+
+    render(
+      <MemoryRouter>
+        <FilesPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('No files found.')).toBeInTheDocument());
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['dummy'], 'test.csv', { type: 'text/csv' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/upload',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
   });
 
   it('opens delete dialog and deletes a committed file', async () => {
@@ -128,7 +160,7 @@ describe('FilesPage', () => {
 
     expect(screen.getByText('Delete File')).toBeInTheDocument();
     expect(
-      screen.getByText(/This will discard all staged transactions for this file/),
+      screen.getByText(/This will discard all in-review transactions for this file/),
     ).toBeInTheDocument();
 
     const confirmBtn = screen.getByText('Delete');
