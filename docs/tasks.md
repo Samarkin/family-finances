@@ -153,6 +153,15 @@ This document outlines the prioritized, atomic tasks for the Family Finances app
     - Re-fetch data to reflect edits immediately on the UI.
     - Immutable fields (e.g., Amount, Date) that originate from the CSV must not appear editable in the UI, and the server should simply ignore them if they are sent by the client.
     - Add both UI component tests and server-side integration tests.
+- [x] **5.5 Import Comments from CSV**: Map comments from an arbitrary CSV onto the staged transactions being reviewed on the Preview page.
+  - **Requirements**:
+    - Add an "Upload comments" button on the `PreviewPage` (plus a page-wide drag-over overlay) that opens a two-step modal wizard. All parsing and matching happen client-side; the source CSV is never persisted.
+    - Step 1: parse the CSV with `papaparse`, preview the first rows of all columns, and let the user map an Amount column (required), Start date (required), End date (optional, for ranges), and a single Comment column (required).
+    - Step 2: a 0–7 day drift slider (default 3) drives live matching. Match by absolute amount (to the cent) and date: a transaction matches when its date is within `[start - drift, end + drift]` inclusive.
+    - Conflict handling: bucket rows and transactions by absolute amount, then resolve each connected feasibility component with a maximum bipartite matching — equal counts with a perfect matching apply (arbitrary pairing), everything else is reported as a read-only conflict the user fixes via the slider. Same-amount transactions with no nearby row are simply left without a comment.
+    - Show: count of comments to apply, the full conflicts list (dates + amounts), the in-range-but-unmatched CSV rows (first 5 + total), and staged transactions left without a comment (first 5 + total).
+    - Apply via `POST /api/preview/:id/apply-comments` taking `[{ id, comment }]`; the server appends each to any existing comment (newline-separated) atomically. Refresh the preview afterward.
+    - Add a unit-tested client matching utility, a wizard component test, and server integration tests.
 
 ## Backlog
 

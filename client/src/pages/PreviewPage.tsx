@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -30,11 +30,12 @@ import {
   Snackbar,
   IconButton,
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, UploadFile as UploadFileIcon } from '@mui/icons-material';
 import type { SelectChangeEvent } from '@mui/material';
 import type { Account, CategoryMap } from '../types';
 import { formatCurrency } from '../utils/format';
 import { CommentButton, CommentPopover, useCommentEditor } from '../components/CommentPopover';
+import CommentImportWizard from '../components/CommentImportWizard';
 
 interface StagedTransaction {
   id: number;
@@ -97,6 +98,42 @@ export default function PreviewPage() {
   const [personModalError, setPersonModalError] = useState<string | null>(null);
 
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+
+  // Comment import wizard state
+  const [commentFile, setCommentFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCommentFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) setCommentFile(file);
+    event.target.value = ''; // allow re-selecting the same file
+  };
+
+  const handleDragEnter = (event: React.DragEvent) => {
+    if (!event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    dragCounter.current += 1;
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) setCommentFile(file);
+  };
 
   const weekdayFormatter = useMemo(() => new Intl.DateTimeFormat('en-US', { weekday: 'long' }), []);
 
@@ -515,7 +552,47 @@ export default function PreviewPage() {
   const needsReviewCount = data.transactions.filter((tx) => !tx.categoryId || !tx.personId).length;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        flexGrow: 1,
+        minHeight: 0,
+        position: 'relative',
+      }}
+      onDragEnter={handleDragEnter}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        hidden
+        onChange={handleCommentFileSelected}
+      />
+      {isDragging && (
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 10,
+            border: '3px dashed',
+            borderColor: 'primary.main',
+            borderRadius: 1,
+            bgcolor: 'rgba(25, 118, 210, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <Typography variant="h5" color="primary">
+            Drop a comments CSV to map it onto these transactions
+          </Typography>
+        </Box>
+      )}
       <Typography variant="h4" gutterBottom>
         Preview: {data.filename}
       </Typography>
@@ -571,6 +648,14 @@ export default function PreviewPage() {
             </Box>
           }
         />
+
+        <Button
+          variant="outlined"
+          startIcon={<UploadFileIcon />}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Upload comments
+        </Button>
 
         <Box sx={{ flexGrow: 1 }} />
 
@@ -887,6 +972,16 @@ export default function PreviewPage() {
         onClose={comment.close}
         onSave={comment.save}
       />
+
+      {commentFile && id && (
+        <CommentImportWizard
+          file={commentFile}
+          previewId={id}
+          transactions={data.transactions}
+          onClose={() => setCommentFile(null)}
+          onApplied={fetchPreview}
+        />
+      )}
     </Box>
   );
 }

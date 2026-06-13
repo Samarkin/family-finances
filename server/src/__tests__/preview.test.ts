@@ -439,6 +439,101 @@ describe('POST /api/preview/:id/bulk-update', () => {
   });
 });
 
+describe('POST /api/preview/:id/apply-comments', () => {
+  afterAll(() => {
+    closeDb();
+  });
+
+  const seedStagedTx = (fileStageId: number | bigint, hash: string, comment: string | null) =>
+    db
+      .prepare(
+        'INSERT INTO TransactionStage (Hash, Date, Description, Amount, Comment, FileStageId) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run(hash, '2023-01-01', 'T', 10, comment, fileStageId);
+
+  let db: ReturnType<typeof getDb>;
+  beforeEach(() => {
+    db = getDb();
+    db.prepare('DELETE FROM TransactionStage').run();
+    db.prepare('DELETE FROM FileStage').run();
+  });
+
+  it('appends comments to empty and existing comments, ignoring blank entries', async () => {
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+
+    const { lastInsertRowid: emptyTx } = seedStagedTx(fileStageId, 'h1', null);
+    const { lastInsertRowid: notedTx } = seedStagedTx(fileStageId, 'h2', 'existing');
+    const { lastInsertRowid: untouchedTx } = seedStagedTx(fileStageId, 'h3', 'keep me');
+
+    const response = await request(app)
+      .post(`/api/preview/${fileStageId}/apply-comments`)
+      .send({
+        comments: [
+          { id: emptyTx, comment: 'order A' },
+          { id: notedTx, comment: 'order B' },
+          { id: untouchedTx, comment: '' }, // blank -> ignored
+        ],
+      });
+
+    expect(response.status).toBe(200);
+
+    const get = (txId: number | bigint) =>
+      (
+        db
+          .prepare('SELECT Comment FROM TransactionStage WHERE TransactionStageId = ?')
+          .get(txId) as { Comment: string | null }
+      ).Comment;
+
+    expect(get(emptyTx)).toBe('order A');
+    expect(get(notedTx)).toBe('existing\norder B');
+    expect(get(untouchedTx)).toBe('keep me');
+  });
+
+  it('rejects and rolls back when a transaction does not belong to the file', async () => {
+    const { lastInsertRowid: f1 } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('f1');
+    const { lastInsertRowid: f2 } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('f2');
+
+    const { lastInsertRowid: txInF1 } = seedStagedTx(f1, 'h1', null);
+    const { lastInsertRowid: txInF2 } = seedStagedTx(f2, 'h2', null);
+
+    const response = await request(app)
+      .post(`/api/preview/${f2}/apply-comments`)
+      .send({
+        comments: [
+          { id: txInF2, comment: 'valid' },
+          { id: txInF1, comment: 'wrong file' },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('do not belong to this file');
+
+    // The valid update must have been rolled back too.
+    const comment = (
+      db
+        .prepare('SELECT Comment FROM TransactionStage WHERE TransactionStageId = ?')
+        .get(txInF2) as { Comment: string | null }
+    ).Comment;
+    expect(comment).toBeNull();
+  });
+
+  it('returns 400 when comments is not an array', async () => {
+    const { lastInsertRowid: fileStageId } = db
+      .prepare('INSERT INTO FileStage (Filename) VALUES (?)')
+      .run('test.csv');
+    const response = await request(app)
+      .post(`/api/preview/${fileStageId}/apply-comments`)
+      .send({ comments: 'nope' });
+    expect(response.status).toBe(400);
+  });
+});
+
 describe('POST /api/preview/:id/submit', () => {
   afterAll(() => {
     closeDb();

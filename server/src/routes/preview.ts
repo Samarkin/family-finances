@@ -187,7 +187,7 @@ router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
       } else {
         // Apply to all transactions in this file
         query += ' WHERE FileStageId = ?';
-        params.push(id);
+        params.push(id as string);
       }
 
       db.prepare(query).run(...params);
@@ -201,6 +201,53 @@ router.post('/preview/:id/bulk-update', (req: Request, res: Response) => {
     }
     console.error('Bulk update error:', error);
     res.status(500).json({ error: 'Failed to bulk update', message: (error as Error).message });
+  }
+});
+
+router.post('/preview/:id/apply-comments', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { comments } = req.body;
+  const db = getDb();
+
+  if (!Array.isArray(comments)) {
+    res.status(400).json({ error: 'comments must be an array of { id, comment }' });
+    return;
+  }
+
+  try {
+    db.transaction(() => {
+      const checkTx = db.prepare(
+        'SELECT 1 FROM TransactionStage WHERE TransactionStageId = ? AND FileStageId = ?',
+      );
+      // Append to any existing comment, separated by a newline.
+      const appendComment = db.prepare(
+        `UPDATE TransactionStage
+         SET Comment = CASE
+           WHEN Comment IS NULL OR Comment = '' THEN ?
+           ELSE Comment || char(10) || ?
+         END
+         WHERE TransactionStageId = ?`,
+      );
+
+      for (const entry of comments) {
+        const txId = entry?.id;
+        const text = entry?.comment;
+        if (txId === undefined || typeof text !== 'string' || text === '') continue;
+        if (!checkTx.get(txId, id)) {
+          throw new Error('INVALID_TRANSACTION');
+        }
+        appendComment.run(text, text, txId);
+      }
+    })();
+
+    res.json({ success: true });
+  } catch (error) {
+    if ((error as Error).message === 'INVALID_TRANSACTION') {
+      res.status(400).json({ error: 'One or more transactions do not belong to this file' });
+      return;
+    }
+    console.error('Apply comments error:', error);
+    res.status(500).json({ error: 'Failed to apply comments', message: (error as Error).message });
   }
 });
 
